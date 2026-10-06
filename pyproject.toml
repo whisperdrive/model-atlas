@@ -1,0 +1,35 @@
+[project]
+name = "model-atlas"
+dynamic = ["version"]
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Yong Ching Thai" }]
+description = "Reads a large Excel financial model into a SQLite map, traces a DCF value to its drivers and tests the model's statements, with no formula engine and no model calls."
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.141.1",
+    "numpy>=2.0",
+    "openpyxl>=3.1.5",
+    "python-calamine>=0.8.2",
+    "uvicorn>=0.54.0",
+    "xlsxwriter>=3.2",
+]
+
+[project.scripts]
+atlas-build = "modelatlas.build_map:cli"
+atlas-census = "modelatlas.census:cli"
+atlas-graph = "modelatlas.depgraph:cli"
+atlas-statements = "modelatlas.statements:cli"
+atlas-diagnose = "modelatlas.diagnose:cli"
+atlas-dashboard = "modelatlas.dashboard.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "modelatlas/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["modelatlas"]

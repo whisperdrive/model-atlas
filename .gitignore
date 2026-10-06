@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+out/
+diag/
+tests/sample_models/
+*.xlsm
+*.xlsb
+*.xls
+~$*
+.env

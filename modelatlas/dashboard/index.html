@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Model Atlas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* Page chrome matches the Model Desk app; chart series use the validated categorical palette (both modes). */
+:root {
+  --ground: #f4f6f4; --surface: #ffffff; --ink: #1b2320; --muted: #5d6a64; --rule: #d8ded9;
+  --accent: #1d6b47; --accent-soft: #e3efe7; --warn-bg: #fbeeea; --warn-ink: #8a2f1b; --code-bg: #eef1ee;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s7: #4a3aa7; --s8: #e34948; --gray: #6b7771;
+  --q1: #cde2fb; --q2: #9ec5f4; --q3: #6da7ec; --q4: #3987e5; --q5: #256abf; --q6: #184f95; --q7: #0d366b;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #111513; --surface: #181e1b; --ink: #e2e9e5; --muted: #93a39b; --rule: #2b3430;
+    --accent: #58bd8a; --accent-soft: #1d3328; --warn-bg: #3a1f18; --warn-ink: #f2a58f; --code-bg: #1f2622;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s7: #9085e9; --s8: #e66767; --gray: #93a39b;
+    --q1: #0d366b; --q2: #104281; --q3: #184f95; --q4: #1c5cab; --q5: #2a78d6; --q6: #5598e7; --q7: #86b6ef;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #111513; --surface: #181e1b; --ink: #e2e9e5; --muted: #93a39b; --rule: #2b3430;
+  --accent: #58bd8a; --accent-soft: #1d3328; --warn-bg: #3a1f18; --warn-ink: #f2a58f; --code-bg: #1f2622;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s7: #9085e9; --s8: #e66767; --gray: #93a39b;
+  --q1: #0d366b; --q2: #104281; --q3: #184f95; --q4: #1c5cab; --q5: #2a78d6; --q6: #5598e7; --q7: #86b6ef;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 15px/1.55 var(--sans); }
+a { color: var(--accent); }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.muted { color: var(--muted); }
+.num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.mono { font-family: var(--mono); font-size: 13px; }
+header { display: flex; align-items: center; gap: 12px; padding: 12px 24px; border-bottom: 1px solid var(--rule);
+  background: var(--surface); position: sticky; top: 0; z-index: 5; }
+header h1 { font-size: 16px; font-weight: 600; margin: 0; white-space: nowrap; }
+header .crumb { min-width: 0; }
+header h1 a { color: inherit; text-decoration: none; }
+header .crumb { color: var(--muted); font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+header .sp { flex: 1; }
+.btn { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 13px; }
+.btn:hover { border-color: var(--accent); }
+main { max-width: 1240px; margin: 0 auto; padding: 20px 24px 48px; display: grid; gap: 16px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; min-width: 0; }
+.card h2 { font-size: 14px; font-weight: 600; margin: 0 0 2px; }
+.card .sub { font-size: 13px; color: var(--muted); margin: 0 0 12px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 12px 16px; }
+.tile b { display: block; font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.tile span { font-size: 13px; color: var(--muted); }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th { text-align: left; font-weight: 500; font-size: 12px; color: var(--muted); padding: 6px 10px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+td { padding: 7px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+tr.link { cursor: pointer; }
+tr.link:hover td { background: var(--ground); }
+.pill { display: inline-block; font-size: 11.5px; padding: 1px 8px; border-radius: 99px; background: var(--code-bg); color: var(--muted); white-space: nowrap; }
+.pill.ok { background: var(--accent-soft); color: var(--accent); }
+.pill.cli { background: var(--code-bg); color: var(--ink); }
+.pill.bad { background: var(--warn-bg); color: var(--warn-ink); }
+td.barcell { width: 35%; vertical-align: middle; }
+.bar { height: 8px; border-radius: 0 4px 4px 0; background: var(--s1); min-width: 2px; }
+.chart { position: relative; height: 260px; }
+.callout { background: var(--warn-bg); color: var(--warn-ink); border-radius: 8px; padding: 10px 14px; font-size: 14px; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.controls input, .controls select { background: var(--ground); border: 1px solid var(--rule); border-radius: 6px; padding: 5px 8px; font-size: 14px; }
+.controls input { flex: 1; min-width: 160px; }
+/* Sheet-to-sheet flow heatmap */
+.heat { border-collapse: separate; border-spacing: 2px; width: auto; font-size: 12px; }
+.heat th { border: 0; padding: 2px 6px; font-weight: 400; }
+.heat th.col { writing-mode: vertical-rl; transform: rotate(180deg); text-align: left; padding: 6px 2px; }
+.heat td { border: 0; width: 34px; height: 26px; padding: 0; text-align: center; border-radius: 3px; font-variant-numeric: tabular-nums; cursor: default; }
+.heat td.z { background: var(--ground); }
+.heat td:not(.z):hover { outline: 2px solid var(--ink); }
+.pill i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; }
+.controls label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.controls input.small { flex: 0 0 auto; min-width: 0; width: 80px; }
+.pills { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 8px; }
+.legend { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin-top: 10px; flex-wrap: wrap; }
+.legend i { display: inline-block; width: 22px; height: 10px; border-radius: 2px; }
+#tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--surface); font-size: 12.5px; padding: 6px 9px;
+  border-radius: 6px; z-index: 10; max-width: 320px; display: none; }
+details summary { cursor: pointer; font-size: 14px; font-weight: 600; }
+@media (max-width: 640px) {
+  header { padding: 10px 16px; }
+  main { padding: 16px 16px 40px; }
+}
+header h1 small { font-size: 11px; font-weight: 400; }
+footer { color: var(--muted); font-size: 12px; padding: 16px 24px 24px; border-top: 1px solid var(--rule); margin-top: 24px; }
+</style>
+</head>
+<body>
+<header>
+  <h1><a href="#/">Model Atlas</a> <small id="ver" class="muted"></small></h1>
+  <span class="crumb" id="crumb"></span>
+  <span class="sp"></span>
+  <button class="btn" id="refresh" title="Reload from the databases">Refresh</button>
+</header>
+<main id="main"><p class="muted">Loading…</p></main>
+<footer id="notice"></footer>
+<div id="tip"></div>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const fmtN = n => (n ?? 0).toLocaleString();
+const kfmt = n => n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? (n / 1e3).toFixed(1) + "k" : String(n ?? 0);
+const usd = n => "$" + (n ?? 0).toFixed(n >= 100 ? 0 : 2);
+const tok = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const date = t => t ? new Date(t * 1000).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "";
+const bytes = n => n >= 1e6 ? (n / 1e6).toFixed(1) + " MB" : Math.max(1, Math.round((n || 0) / 1e3)) + " kB";
+const PURPOSE = { chat: "Questions", identify: "Identify target/date", summary: "Change summaries", "chart review": "Chart reviews" };
+const tbl = (rows, cols, rowAttr) => rows.length ? `<div class="scroll"><table><thead><tr>${cols.map(c => `<th${c[2] && c[2] !== "bar" ? ' class="num"' : ""}>${c[0]}</th>`).join("")}</tr></thead>
+  <tbody>${rows.map(r => `<tr${rowAttr ? rowAttr(r) : ""}>${cols.map(c => `<td${c[2] === "bar" ? ' class="barcell"' : c[2] ? ' class="num"' : ""}>${c[1](r)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`
+  : '<p class="muted" style="margin:0">Nothing here yet.</p>';
+
+let charts = [], last = null;
+function drop() { charts.forEach(c => c.destroy()); charts = []; }
+async function getJSON(u) {
+  const r = await fetch(u);
+  if (!r.ok) {
+    const d = (await r.json().catch(() => ({}))).detail;
+    throw new Error(Array.isArray(d) ? d.map(e => e.msg).join("; ") : d || r.statusText);  // FastAPI's validation errors are a list
+  }
+  return r.json();
+}
+
+// Shared Chart.js look: recessive grid, muted ticks, tooltips on.
+function axes(stacked, horizontal) {
+  const tick = { color: tok("--muted"), font: { family: tok("--sans"), size: 12 } };
+  const val = { stacked, ticks: tick, grid: { color: tok("--rule") }, border: { display: false } };
+  const cat = { stacked, ticks: tick, grid: { display: false }, border: { color: tok("--rule") } };
+  return horizontal ? { x: val, y: cat } : { x: cat, y: val };
+}
+const legendOpts = () => ({ position: "top", align: "start", labels: { color: tok("--ink"), boxWidth: 12, boxHeight: 12, useBorderRadius: true, borderRadius: 2, font: { family: tok("--sans"), size: 12 } } });
+const barDs = (label, data, color) => ({ label, data, backgroundColor: tok(color), borderColor: tok("--surface"), borderWidth: 1, borderRadius: 4, borderSkipped: "start", maxBarThickness: 28 });
+
+/* ---------- Portfolio (registry.db) ---------- */
+async function portfolio() {
+  $("#crumb").textContent = "";
+  const d = await getJSON("/api/portfolio"); last = d;
+  const f = d.files, u = d.usage;
+  const done = f.filter(x => x.status === "done" || x.status === "built");
+  const spendByFile = Object.fromEntries((u?.by_file || []).map(r => [r.file_id, r]));
+  const byId = Object.fromEntries(f.map(x => [x.id, x]));
+  const status = x => x.status === "done" ? '<span class="pill ok">✓ done</span>'
+    : x.status === "built" ? '<span class="pill ok">✓ built</span>'
+    : x.status === "error" ? `<span class="pill bad" title="${esc(x.error)}">✕ error</span>` : `<span class="pill">${esc(x.step || x.status)}</span>`;
+  $("#main").innerHTML = `
+    <div class="tiles">
+      <div class="tile"><b>${fmtN(f.length)}</b><span>workbooks (${fmtN(done.length)} processed)</span></div>
+      <div class="tile"><b>${fmtN(done.reduce((a, x) => a + (x.sheets || 0), 0))}</b><span>sheets</span></div>
+      <div class="tile"><b>${fmtN(done.reduce((a, x) => a + (x.line_items || 0), 0))}</b><span>line items</span></div>
+      ${u ? `<div class="tile"><b>${usd(u.total.cost_usd)}</b><span>model spend at list price</span></div>
+      <div class="tile"><b>${fmtN(u.total.calls)}</b><span>model calls${u.total.since ? " since " + date(u.total.since) : ""}</span></div>` : ""}
+    </div>
+    <div class="card"><h2>Workbooks</h2><p class="sub">Select a processed workbook to see its structure and dependencies.</p>
+      ${tbl(f, [["Workbook", x => `<b style="font-weight:500">${esc(x.filename)}</b>${x.previous_id ? `<div class="muted" style="font-size:12px">new version of ${esc(byId[x.previous_id]?.filename || "#" + x.previous_id)}</div>` : ""}`],
+        ["Status", status], ["Source", x => `<span class="pill${x.source === "upload" ? "" : " cli"}">${esc(x.source)}</span>`], ["Target", x => esc(x.target_name) || '<span class="muted">–</span>'],
+        ["Valuation date", x => esc(x.valuation_date) || '<span class="muted">–</span>'],
+        ["Sheets", x => fmtN(x.sheets), 1], ["Line items", x => fmtN(x.line_items), 1], ["Size", x => bytes(x.size), 1],
+        ["Build", x => x.build_secs != null ? x.build_secs.toFixed(1) + "s" : "–", 1],
+        ["Spend", x => spendByFile[x.id] ? usd(spendByFile[x.id].cost_usd) : "–", 1], ["Uploaded", x => date(x.uploaded_at), 1]],
+        x => x.db_ok ? ` class="link" tabindex="0" data-id="${esc(x.id)}"` : "")}
+    </div>
+    ${u ? `<div class="grid2">
+      <div class="card"><h2>Spend by day</h2><p class="sub">USD at list price, by what the call was for.</p><div class="chart"><canvas id="c-day"></canvas></div></div>
+      <div class="card"><h2>Spend by model</h2><p class="sub">All time.</p>
+        ${tbl(u.by_model, [["Model", r => `<span class="mono">${esc(r.model)}</span>`], ["", r => `<div class="bar" style="width:${Math.max(2, 100 * r.cost_usd / (u.by_model[0].cost_usd || 1))}%" title="${usd(r.cost_usd)}"></div>`, "bar"],
+          ["Calls", r => fmtN(r.calls), 1], ["Tokens", r => kfmt(r.input_tokens + r.output_tokens), 1], ["Spend", r => usd(r.cost_usd), 1]])}</div>
+    </div>` : ""}`;
+  document.querySelectorAll("tr.link").forEach(tr => {
+    const go = () => location.hash = "#/wb/" + encodeURIComponent(tr.dataset.id);
+    tr.onclick = go; tr.onkeydown = e => { if (e.key === "Enter") go(); };
+  });
+  if (u?.by_day_purpose.length) {
+    const days = [...new Set(u.by_day_purpose.map(r => r.day))];
+    // Fixed order, so a colour stays with its purpose; anything past four folds into "Other".
+    const all = [...new Set(u.by_day_purpose.map(r => r.purpose))].sort(), main4 = all.slice(0, all.length > 5 ? 4 : 5);
+    const sum = (d, ps) => u.by_day_purpose.filter(r => r.day === d && ps.includes(r.purpose)).reduce((a, r) => a + r.cost_usd, 0);
+    const series = main4.map(p => [PURPOSE[p] || p, [p]]).concat(all.length > main4.length ? [["Other", all.slice(main4.length)]] : []);
+    charts.push(new Chart($("#c-day"), { type: "bar",
+      data: { labels: days.map(d => new Date(d + "T00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })),
+        datasets: series.map(([label, ps], i) => barDs(label, days.map(d => sum(d, ps)), `--s${i + 1}`)) },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, interaction: { mode: "index", intersect: false },
+        plugins: { legend: legendOpts(), tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${usd(c.raw)}` } } },
+        scales: { ...axes(true), y: { ...axes(true).y, ticks: { ...axes(true).y.ticks, callback: v => "$" + v } } } } }));
+  }
+}
+
+/* ---------- One workbook (its model.db) ---------- */
+async function workbook(id) {
+  const d = await getJSON("/api/workbook/" + encodeURIComponent(id)); last = d;
+  $("#crumb").textContent = "/ " + d.filename;
+  const t = d.totals, e = d.edges;
+  const pct = t.formulas + t.consts ? Math.round(100 * t.formulas / (t.formulas + t.consts)) : 0;
+  const liveEdges = e.kinds.filter(k => k.kind !== "inactive").reduce((a, k) => a + k.n, 0);
+  const tl = s => s.layout.periods ? `${s.layout.periods} ${esc(s.layout.periodicity || "")} · ${esc(s.layout.period_start || "")} → ${esc(s.layout.period_end || "")}` : '<span class="muted">none</span>';
+  const rowRef = r => `<span class="mono">${esc(r.sheet)}!${r.row}</span>`;
+  const topCols = what => [["Row", rowRef], ["Label", r => esc(r.label) || `<span class="muted">${esc(r.units) || "unlabelled"}</span>`], [what, r => fmtN(r.n), 1], ["Sheets", r => fmtN(r.sheets), 1]];
+  $("#main").innerHTML = `
+    <p class="muted" style="margin:0"><span class="pill${d.source === "upload" ? "" : " cli"}">${esc(d.source)}</span>${d.target_name || d.valuation_date ? " " + esc(d.target_name || "") + (d.project_name ? " · " + esc(d.project_name) : "") + (d.valuation_date ? " · valued at " + esc(d.valuation_date) : "") : ""}</p>
+    <div class="tiles">
+      <div class="tile"><b>${fmtN(t.sheets)}</b><span>sheets</span></div>
+      <div class="tile"><b>${fmtN(t.rows)}</b><span>line items</span></div>
+      <div class="tile"><b>${kfmt(t.formulas)}</b><span>formula cells (${pct}%)</span></div>
+      <div class="tile"><b>${kfmt(t.consts)}</b><span>inputs / constants</span></div>
+      <div class="tile"><b>${fmtN(liveEdges)}</b><span>row links in use${t.edges > liveEdges ? ` (+${fmtN(t.edges - liveEdges)} unused)` : ""}</span></div>
+      <div class="tile"><b>${fmtN(t.names)}</b><span>named ranges</span></div>
+    </div>
+    <div class="card"><h2>Cells by sheet</h2><p class="sub">Formula cells and hard-coded inputs in each sheet's line items, in workbook order.</p>
+      <div class="chart" id="sheets-box"><canvas id="c-sheets"></canvas></div></div>
+    <div class="card"><h2>Which sheets feed which</h2><p class="sub">Row links from the sheet on the left (reads) to the sheet across the top (is read). Only links the current scenario uses; links within a sheet are left out.</p>
+      <div class="scroll" id="heat"></div></div>
+    <div class="card"><h2>Value dependency graph</h2><p class="sub">What a DCF value rests on: the discounting, cash flows, calculations and inputs behind it, classed by rule with a stated reason. Opens as its own report page.</p>
+      <div id="dg"><p class="muted" style="margin:0">Finding the DCFs…</p></div></div>
+    <div class="grid2">
+      <div class="card"><h2>Most-read rows</h2><p class="sub">Rows that the most other rows depend on.</p>${tbl(e.most_read, topCols("Read by"))}</div>
+      <div class="card"><h2>Rows reading the most</h2><p class="sub">Rows whose formulas pull from the most other rows.</p>${tbl(e.most_reading, topCols("Reads"))}</div>
+    </div>
+    <div class="card"><h2>Sheets</h2>
+      ${tbl(d.sheets, [["#", s => s.pos, 1], ["Sheet", s => esc(s.sheet)], ["State", s => s.state === "visible" ? "visible" : `<span class="pill">${esc(s.state)}</span>`],
+        ["Timeline", tl], ["Line items", s => fmtN(s.rows), 1], ["Formulas", s => fmtN(s.formulas), 1], ["Inputs", s => fmtN(s.consts), 1],
+        ["Sections", s => fmtN(d.sections.filter(x => x.sheet === s.sheet).length), 1]])}</div>
+    <div class="card"><h2>Line items</h2><p class="sub">Search labels and sections. Shows the first 200 matches.</p>
+      <div class="controls"><input type="search" id="q" placeholder="Search, e.g. revenue">
+        <select id="sheet"><option value="">All sheets</option>${d.sheets.filter(s => s.rows).map(s => `<option>${esc(s.sheet)}</option>`).join("")}</select></div>
+      <div id="rows"><p class="muted">Loading…</p></div></div>
+    <div class="card"><details><summary>Named ranges (${fmtN(d.names.length)})</summary><div style="margin-top:10px">
+      ${tbl(d.names, [["Name", n => `<span class="mono">${esc(n.name)}</span>`], ["Refers to", n => `<span class="mono">${esc(n.ref)}</span>`]])}</div></details></div>`;
+
+  // Horizontal stacked bars: formulas vs inputs per sheet.
+  const sh = d.sheets.filter(s => s.rows);
+  $("#sheets-box").style.height = Math.max(160, 60 + sh.length * 26) + "px";
+  charts.push(new Chart($("#c-sheets"), { type: "bar",
+    data: { labels: sh.map(s => s.sheet), datasets: [barDs("Formulas", sh.map(s => s.formulas), "--s1"), barDs("Inputs", sh.map(s => s.consts), "--s2")] },
+    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, animation: false, interaction: { mode: "index", axis: "y", intersect: false },
+      plugins: { legend: legendOpts(), tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${fmtN(c.raw)}` } } },
+      scales: { ...axes(true, true), x: { ...axes(true, true).x, ticks: { ...axes(true, true).x.ticks, callback: v => kfmt(v) } } } } }));
+
+  heatmap(e.flows, d.sheets.map(s => s.sheet));
+  const load = debounce(() => loadRows(id), 200);
+  $("#q").oninput = load; $("#sheet").onchange = load;
+  loadRows(id);
+  depGraph(id);
+}
+
+/* Value dependency graph card: anchors from the catalogue (slow the first time), a summary from the JSON, the report in a new tab. */
+const CLS = { outcome: "--s1", bridge: "--s2", cashflow: "--s3", timeline: "--s4", assumption: "--s5", discounting: "--s7", terminal: "--s8", calculation: "--gray" };
+let dgSeq = 0;
+async function depGraph(id) {
+  const box = $("#dg");
+  let anchors;
+  try { anchors = (await getJSON(`/api/workbook/${encodeURIComponent(id)}/depgraph/anchors`)).anchors; }
+  catch (err) { box.innerHTML = `<div class="callout">${esc(err.message)}</div>`; return; }
+  if (!$("#dg")) return;  // moved to another page meanwhile
+  const val = v => typeof v === "number" ? v.toLocaleString(undefined, { maximumFractionDigits: 2 }) : esc(v ?? "");
+  const usable = anchors.filter(a => a.ok);
+  box.innerHTML = `<div class="controls">
+      ${usable.length ? `<select id="dg-cell" aria-label="Value cell" style="flex:1;min-width:260px">${usable.map(a =>
+        `<option value="${esc(a.cell)}">${esc(a.label || "(no label)")} · ${esc(a.cell)} · ${val(a.value)} · ${a.matches ? "ok" : "does not reproduce"}</option>`).join("")}</select>`
+        : `<span class="muted" style="align-self:center">No DCF found in this workbook; type a cell:</span><input type="text" id="dg-cell" placeholder="Sheet!C5" aria-label="Value cell">`}
+      <label>Depth <input type="number" id="dg-depth" class="small" value="6" min="1" max="30"></label>
+      <label>Max rows <input type="number" id="dg-max" class="small" value="300" min="10" max="3000"></label>
+      <button class="btn" id="dg-open">Open report</button></div>
+    <div id="dg-sum"></div>`;
+  const qs = () => {
+    const p = new URLSearchParams(), c = $("#dg-cell").value.trim();
+    if (c) p.set("cell", c);
+    p.set("depth", $("#dg-depth").value || 6); p.set("max_rows", $("#dg-max").value || 300);
+    return p;
+  };
+  const summary = async () => {
+    const seq = ++dgSeq, sum = $("#dg-sum");
+    if (!$("#dg-cell").value.trim()) { sum.innerHTML = ""; return; }
+    sum.innerHTML = '<p class="muted" style="margin:0">Reading the graph…</p>';
+    try {
+      const g = await getJSON(`/api/workbook/${encodeURIComponent(id)}/depgraph?${qs()}`);
+      if (seq !== dgSeq) return;
+      const st = g.stats, m = g.cores[0]?.method;
+      const rate = m?.rate_value ?? m?.rate;
+      sum.innerHTML = `<div class="pills">${g.by_class.map(c => `<span class="pill"><i style="background:var(${CLS[c.class] || "--s6"})"></i>${esc((g.classes.find(k => k.key === c.class) || {}).name || c.class)} ${fmtN(c.n)}</span>`).join("")}</div>
+        <p class="muted" style="margin:0;font-size:13px">${fmtN(st.rows_shown)} of ${fmtN(st.rows_upstream_total)} upstream rows shown${st.groups ? `, the rest in ${fmtN(st.groups)} group${st.groups > 1 ? "s" : ""}` : ""}.
+        ${m ? `Discounted at ${typeof rate === "number" && Math.abs(rate) < 1 ? (rate * 100).toFixed(2) + "%" : esc(rate ?? "–")} to ${esc(m.valuation_date_value || m.valuation_date || "–")}, ${esc(m.timing ? m.timing + "-of-period" : "timing not stated")}, ${esc(m.day_count || "day count not stated")}.` : "No discounting found."}</p>`;
+    } catch (err) { if (seq === dgSeq) sum.innerHTML = `<div class="callout">${esc(err.message)}</div>`; }
+  };
+  const again = debounce(summary, 300);
+  $("#dg-cell").onchange = summary; $("#dg-depth").oninput = again; $("#dg-max").oninput = again;
+  $("#dg-open").onclick = () => window.open(`/api/workbook/${encodeURIComponent(id)}/depgraph.html?${qs()}`, "_blank");
+  summary();
+}
+
+function heatmap(flows, order) {
+  const live = flows.filter(f => f.live > 0);
+  if (!live.length) { $("#heat").innerHTML = '<p class="muted" style="margin:0">No links between sheets.</p>'; return; }
+  const src = order.filter(s => live.some(f => f.src_sheet === s)), dst = order.filter(s => live.some(f => f.dst_sheet === s));
+  const n = Object.fromEntries(live.map(f => [f.src_sheet + "\u0000" + f.dst_sheet, f.live]));
+  const max = Math.max(...live.map(f => f.live));
+  // Seven log-spaced steps of one blue ramp: magnitude, light (few) to dark (many).
+  const step = v => Math.min(7, 1 + Math.floor(6 * Math.log(v) / Math.log(Math.max(max, 2))));
+  const edges = [...Array(7)].map((_, i) => Math.round(Math.exp(i * Math.log(Math.max(max, 2)) / 6)));
+  const light = tok("color-scheme") === "dark" ? [1, 2, 3, 4, 5] : [5, 6, 7];  // steps that need white text
+  $("#heat").innerHTML = `<table class="heat"><thead><tr><th></th>${dst.map(s => `<th class="col">${esc(s)}</th>`).join("")}</tr></thead><tbody>
+    ${src.map(a => `<tr><th style="text-align:right">${esc(a)}</th>${dst.map(b => {
+      const v = n[a + "\u0000" + b];
+      if (!v) return '<td class="z"></td>';
+      const k = step(v);
+      return `<td style="background:var(--q${k});color:${light.includes(k) ? "#fff" : "#0b0b0b"}" data-tip="<b>${esc(a)}</b> reads <b>${esc(b)}</b><br>${fmtN(v)} row link${v > 1 ? "s" : ""}">${v >= 1000 ? kfmt(v) : v}</td>`;
+    }).join("")}</tr>`).join("")}</tbody></table>
+    <div class="legend">Fewer ${[1, 2, 3, 4, 5, 6, 7].map(k => `<i style="background:var(--q${k})" title="from ${fmtN(edges[k - 1])}"></i>`).join("")} more links (log scale, up to ${fmtN(max)})</div>`;
+  const tip = $("#tip");
+  $("#heat").onmousemove = ev => {
+    const td = ev.target.closest("td[data-tip]");
+    if (!td) { tip.style.display = "none"; return; }
+    tip.innerHTML = td.dataset.tip; tip.style.display = "block";
+    const x = Math.min(ev.clientX + 14, innerWidth - tip.offsetWidth - 8);
+    tip.style.left = x + "px"; tip.style.top = (ev.clientY + 14) + "px";
+  };
+  $("#heat").onmouseleave = () => tip.style.display = "none";
+}
+
+let rowsSeq = 0;
+async function loadRows(id) {
+  const p = new URLSearchParams(), q = $("#q").value.trim(), s = $("#sheet").value, seq = ++rowsSeq;
+  if (q) p.set("q", q); if (s) p.set("sheet", s);
+  try {
+    const { rows } = await getJSON(`/api/workbook/${encodeURIComponent(id)}/rows?${p}`);
+    if (seq !== rowsSeq) return;  // a newer search has already been sent
+    $("#rows").innerHTML = (rows.length === 200 ? '<p class="muted" style="margin:0 0 8px;font-size:13px">Showing the first 200. Narrow the search to see the rest.</p>' : "") + tbl(rows, [["Row", r => `<span class="mono">${esc(r.sheet)}!${r.row}</span>`], ["Section", r => esc(r.section)],
+      ["Label", r => esc(r.label)], ["Units", r => esc(r.units)], ["Formulas", r => fmtN(r.n_formula), 1], ["Inputs", r => fmtN(r.n_const), 1],
+      ["Reads", r => fmtN(r.reads), 1], ["Read by", r => fmtN(r.read_by), 1],
+      ["Sample", r => `<span class="mono muted" style="font-size:12px">${esc((r.samples || "").slice(0, 60))}</span>`]]);
+  } catch (err) { $("#rows").innerHTML = `<div class="callout">${esc(err.message)}</div>`; }
+}
+
+function debounce(fn, ms) { let t; return () => { clearTimeout(t); t = setTimeout(fn, ms); }; }
+
+async function route() {
+  drop();
+  const m = location.hash.match(/^#\/wb\/([^/?]+)/);
+  try { m ? await workbook(decodeURIComponent(m[1])) : await portfolio(); }
+  catch (err) { $("#main").innerHTML = `<div class="callout">${esc(err.message)}</div><p><a href="#/">Back to all workbooks</a></p>`; }
+}
+addEventListener("hashchange", route);
+$("#refresh").onclick = route;
+fetch("/api/version").then(r => r.json()).then(v => {
+  $("#ver").textContent = v.version; $("#notice").textContent = v.notice;
+}).catch(() => {});
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", route);  // re-read colour tokens
+route();
+</script>
+</body>
+</html>
