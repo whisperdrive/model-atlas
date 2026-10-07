@@ -20,7 +20,7 @@ uv run atlas-build "path/to/model.xlsx"      # row map + SQLite store into out/<
 uv run atlas-graph out/<name>/model.db        # DCF dependency graph, writes out/<name>/depgraph.html
 uv run atlas-statements out/<name>/model.db   # statements, identities and findings
 uv run atlas-threeway out/<name>/model.db [--fy]   # P&L, cash flow and balance sheet, checks and residuals
-uv run atlas-dashboard                        # read-only dashboard on http://localhost:8001
+uv run atlas-dashboard                        # dashboard on http://localhost:8001: or drop the workbook on it instead of atlas-build
 uv run atlas-diagnose out/ --report diag/     # anonymised report per model
 ```
 Check which version produced a file or report with `uv run atlas-build --version` (every command takes `--version`, as
@@ -109,7 +109,16 @@ uv run python -m modelatlas.threeway out/<dir>/model.db [--fy] [--fy-end-month N
 uv run atlas-dashboard                                              # http://localhost:8001
 uv run uvicorn modelatlas.dashboard.server:app --port 8001          # the same, with uvicorn's options
 ```
-It reads the `out/` folder of the directory it is started in, or the folder named by `ATLAS_OUT`. Every
+It reads the `out/` folder of the directory it is started in, or the folder named by `ATLAS_OUT`. Drop an `.xlsx` or
+`.xlsm` on the portfolio page (or choose files): the browser fingerprints it (SHA-256) and asks whether the server
+already has it, otherwise it is uploaded, saved under `uploads/<sha12>/` (git-ignored) and built into
+`out/<stem>__<sha8>/` by one background worker, with the row showing queued, building (progress and step) and done
+or error. The registry of dropped workbooks is `out/atlas.db`; **Rebuild** and **Remove** on a row clear and rebuild,
+or delete, only that workbook's upload and folder, and a build never goes into an existing database. A build the
+server died in the middle of is queued again at the next start. The size limit is 500 MB (`ATLAS_MAX_UPLOAD_MB`).
+Each workbook page has **Run diagnostics (shapes only)**, which writes the anonymised report to `diag/<token>/` and
+links `report.md`; if the self-scan blocks it, the page says so and the reason stays in the local
+`diag/_blocked/<token>.txt`, which is never served. Reading is otherwise as below. Every
 `out/<name>/model.db` is listed as a command-line build; an `out/registry.db`, if one happens to be there, is read as
 well, but nothing needs it. A workbook opens as one page of five sections, each deep-linkable (`#/wb/<id>/holds`):
 **What is this model?** (size, sheets and their roles, profile, line-item search); **How is the value built?** (the

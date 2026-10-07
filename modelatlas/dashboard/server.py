@@ -1,33 +1,48 @@
-"""Model dashboard: a read-only view over out/registry.db and each processed workbook's model.db.
+"""Model dashboard: a view over each processed workbook's model.db, with ingestion of new workbooks.
     uv run atlas-dashboard                               then open http://localhost:8001
     uv run uvicorn modelatlas.dashboard.server:app --port 8001      the same, with uvicorn's own options
 
 Reads the out/ folder of the current directory (or the folder named by ATLAS_OUT): every out/<name>/model.db is listed
-as a command-line build; out/registry.db is read too if there is one, but nothing here needs it. Every database is
-opened with mode=ro, so this never takes a write lock or creates tables.
+as a command-line build; out/registry.db is read too if there is one, but nothing here needs it. Every model database
+is opened with mode=ro, so reading never takes a write lock or creates tables.
+
+What it does write: a workbook dropped on the page is saved under uploads/<sha12>/, listed in out/atlas.db, and built
+into a new out/<stem>__<sha8>/ by one background worker (modelatlas/library.py); a folder that exists is never
+overwritten by anything but a rebuild of its own workbook. The diagnostics button writes diag/<token>/.
 """
+import hashlib
 import json
 import os
 import re
 import sys
 import sqlite3
 import threading
+import uuid
 from collections import OrderedDict
+from contextlib import closing
 from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import Path as PathParam
 from fastapi.concurrency import run_in_threadpool
+from python_multipart.multipart import MultipartParser, parse_options_header
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 
-from .. import NOTICE, __version__, depgraph, depgraph_html, diagnose, ontology, rodb, statements, threeway, version_line
+from .. import NOTICE, __version__, depgraph, depgraph_html, diagnose, library, ontology, rodb, statements, threeway, version_line
 
-ROOT = Path(__file__).resolve().parents[2]  # the project root
-OUT = Path(os.environ.get("ATLAS_OUT", "out")).resolve()  # ./out under the current directory, or ATLAS_OUT
+ROOT = library.ROOT  # the project root
+OUT = library.OUT    # ./out under the current directory, or ATLAS_OUT
 REGISTRY = OUT / "registry.db"
 LIVE = ("direct", "offset", "active")  # edge kinds the current scenario actually uses (see modelatlas/edges.py)
 
 app = FastAPI()
+
+
+@app.on_event("startup")
+def _start_worker() -> None:
+    library.start()   # also puts a build the last run died in the middle of back in the queue
 
 
 @app.exception_handler(sqlite3.Error)
@@ -36,10 +51,12 @@ def _db_error(_request, exc: sqlite3.Error):
     return JSONResponse({"detail": f"The model database could not be read ({type(exc).__name__}: {exc})"}, status_code=503)
 
 
-def _ro(path: Path | str) -> sqlite3.Connection:
+def _ro(path: Path | str) -> "closing[sqlite3.Connection]":
+    """`with _ro(p) as db:` closes the connection at the end of the block (sqlite3's own `with` only commits), so no
+    request leaves model.db open: on Windows an open file cannot be deleted by Remove or Rebuild."""
     db = rodb.connect(path, timeout=5, check_same_thread=False)   # a quoted URI: a folder name may hold '#' or '%'
     db.row_factory = sqlite3.Row
-    return db
+    return closing(db)
 
 
 def _q(db: sqlite3.Connection, sql: str, *args) -> list[dict]:
@@ -69,10 +86,27 @@ def version():
 
 @app.get("/api/portfolio")
 def portfolio():
-    files, usage = [], None
+    usage = None
+    files = _atlas_rows()   # uploads first, then the legacy registry, then folders found under out/
     if REGISTRY.exists():
-        files, usage = _registry_rows()
+        reg, usage = _registry_rows()
+        files += reg
     return {"files": files + _command_line_dbs(files), "usage": usage}
+
+
+def _atlas_rows() -> list[dict]:
+    """The workbooks dropped on the page (out/atlas.db), in the shape the portfolio table reads."""
+    rows = []
+    for r in library.all_files():
+        folder = Path(r["out_dir"]) if r["out_dir"] else None
+        pub = library.public(r)
+        pub.update({"source": "upload", "db_ok": r["status"] == "done" and bool(folder) and (folder / "model.db").is_file(),
+                    "target_name": None, "project_name": None, "valuation_date": None, "identity_confirmed": None,
+                    "previous_id": None, "diff_summary": None})
+        pub.pop("sha256", None)
+        pub["_path"] = _resolved((folder or library.out_folder(r)) / "model.db")   # a queued row's folder is not a "dir:" one
+        rows.append(pub)
+    return rows
 
 
 def _registry_rows():
@@ -94,7 +128,9 @@ def _registry_rows():
             }
     for f in files:
         f["db_ok"] = bool(f["db_path"]) and Path(f["db_path"]).exists()
-        f["source"] = "upload"
+        f["source"] = "registry"
+        f["id"] = "reg:" + str(f["id"])
+        f["previous_id"] = "reg:" + str(f["previous_id"]) if f["previous_id"] is not None else None
         f["_path"] = _resolved(f.pop("db_path"))
     return files, usage
 
@@ -108,7 +144,7 @@ def _resolved(p) -> Path | None:
 
 def _command_line_dbs(registered: list[dict]) -> list[dict]:
     """out/*/model.db that no registry row points at (built by modelatlas/build_map.py or modelatlas/diagnose.py)."""
-    known = {f.pop("_path") for f in registered}
+    known = {f.pop("_path", None) for f in registered}
     found = []
     for path in OUT.glob("*/model.db"):
         if path.resolve() in known:
@@ -131,19 +167,29 @@ def _command_line_dbs(registered: list[dict]) -> list[dict]:
 
 
 def _model_db(fid: str) -> tuple[dict, Path]:
-    """fid is a registry row id ("7") or a database built from the command line ("dir:<folder under out/>")."""
+    """fid is a dropped workbook's id ("7", out/atlas.db), a legacy registry row ("reg:7") or a database built from
+    the command line ("dir:<folder under out/>")."""
     if fid.startswith("dir:"):
         name = fid[4:]
-        if not name or name in (".", "..") or "/" in name or "\\" in name or ".." in name or "\0" in name:
+        if not name or name in (".", "..") or "/" in name or "\\" in name or ".." in name or "\0" in name or ":" in name:   # "C:x" is drive-relative on Windows
             raise HTTPException(400, "Bad folder name")
         path = OUT / name / "model.db"
         if not path.is_file():
             raise HTTPException(404, "No such workbook")
         return {"id": fid, "filename": re.sub(r"__[0-9a-f]{8}$", "", name), "status": "built", "source": "command line",
                 "target_name": None, "project_name": None, "valuation_date": None}, path
-    if not fid.isdigit():
+    if re.fullmatch(r"[0-9]{1,15}", fid):   # ASCII digits only ("²".isdigit() is True), and no int SQLite overflows on
+        r = library.get(int(fid))
+        if not r:
+            raise HTTPException(404, "No such workbook")
+        path = Path(r["out_dir"]) / "model.db" if r["out_dir"] else None
+        if r["status"] != "done" or not path or not path.is_file():
+            raise HTTPException(409, f"{r['filename']} has no model database yet (status: {r['status']})")
+        return {"id": fid, "filename": r["filename"], "status": "done", "source": "upload", "target_name": None,
+                "project_name": None, "valuation_date": None}, path
+    if not re.fullmatch(r"reg:[0-9]{1,15}", fid):
         raise HTTPException(400, "Bad workbook id")
-    fid = int(fid)
+    fid = int(fid[4:])
     if not REGISTRY.exists():
         raise HTTPException(404, "No registry yet")
     with _ro(REGISTRY) as db:
@@ -152,7 +198,7 @@ def _model_db(fid: str) -> tuple[dict, Path]:
     if not rec:
         raise HTTPException(404, "No such workbook")
     rec = dict(rec)
-    rec["source"] = "upload"
+    rec["source"] = "registry"
     path = Path(rec.pop("db_path") or "")
     if not rec["status"] == "done" or not path.is_file():
         raise HTTPException(409, f"{rec['filename']} has no model database yet (status: {rec['status']})")
@@ -344,6 +390,187 @@ async def depgraph_page(fid: str, cell: str | None = None, depth: int = Query(6,
         g["generated"] = datetime.now().isoformat(timespec="seconds")
         return depgraph_html.render(g)
     return HTMLResponse(await run_in_threadpool(page))
+
+
+# ---- ingestion: fingerprint, upload, build on the worker, poll ----------------------------------------------------
+
+_SHA = re.compile(r"^[0-9a-f]{64}$")
+_TOKEN = re.compile(r"^M[0-9a-f]{8}$")
+_DIAG_LOCK = threading.Lock()   # one diagnostics run at a time: they write under diag/
+
+
+@app.get("/api/files/check")
+def files_check(sha: str = Query(...)):
+    sha = sha.strip().lower()
+    if not _SHA.match(sha):
+        raise HTTPException(400, "sha must be 64 hex characters")
+    return {"file": library.public(library.by_sha(sha))}
+
+
+class _Stop(Exception):
+    pass
+
+
+@app.post("/api/files")
+async def files_upload(request: Request):
+    """multipart/form-data with one part named file. It is streamed to a temp file under uploads/ and hashed on the way."""
+    cap = library.max_bytes()
+    try:
+        if int(request.headers.get("content-length") or 0) > cap + (1 << 20):
+            raise HTTPException(413, library.too_big())
+    except ValueError:
+        pass
+    ctype = request.headers.get("content-type", "")
+    if not ctype.lower().startswith("multipart/form-data"):
+        raise HTTPException(400, "Send the workbook as multipart/form-data, in a part named file")
+    boundary = parse_options_header(ctype)[1].get(b"boundary")
+    if not boundary:
+        raise HTTPException(400, "No multipart boundary")
+    library.UPLOADS.mkdir(parents=True, exist_ok=True)
+    tmp = library.UPLOADS / f".tmp-{uuid.uuid4().hex}"
+    st = {"hdr": {}, "field": b"", "value": b"", "mine": False, "name": None, "seen": False, "size": 0,
+          "sha": hashlib.sha256(), "fh": None, "err": None}
+
+    def flush_header():
+        if st["field"]:
+            st["hdr"][st["field"].decode("latin-1").lower()] = st["value"]
+        st["field"] = st["value"] = b""
+
+    def on_header_field(data, start, end):
+        if st["value"]:
+            flush_header()
+        st["field"] += data[start:end]
+
+    def on_header_value(data, start, end):
+        st["value"] += data[start:end]
+
+    def on_part_begin():
+        st["hdr"], st["field"], st["value"], st["mine"] = {}, b"", b"", False
+
+    def on_headers_finished():
+        flush_header()
+        _, p = parse_options_header(st["hdr"].get("content-disposition", b""))
+        if p.get(b"name") == b"file" and not st["seen"]:
+            st["seen"] = st["mine"] = True
+            st["name"] = (p.get(b"filename") or b"").decode("utf-8", "replace")
+            try:
+                library.check_name(st["name"])
+            except library.UploadRejected as e:
+                st["err"] = e
+                raise _Stop
+            st["fh"] = open(tmp, "wb")
+
+    def on_part_data(data, start, end):
+        if not st["mine"]:
+            return
+        chunk = data[start:end]
+        st["size"] += len(chunk)
+        if st["size"] > cap:
+            st["err"] = library.UploadRejected(library.too_big(), 413)
+            raise _Stop
+        st["sha"].update(chunk)
+        st["fh"].write(chunk)
+
+    def on_part_end():
+        if st["fh"]:
+            st["fh"].close()
+            st["fh"] = None
+        st["mine"] = False
+
+    parser = MultipartParser(boundary, callbacks={
+        "on_part_begin": on_part_begin, "on_header_field": on_header_field, "on_header_value": on_header_value,
+        "on_headers_finished": on_headers_finished, "on_part_data": on_part_data, "on_part_end": on_part_end})
+    try:
+        try:
+            async for chunk in request.stream():
+                await run_in_threadpool(parser.write, chunk)
+            parser.finalize()
+        except _Stop:
+            raise st["err"]
+        except Exception as e:   # noqa: BLE001 (a body that is not valid multipart)
+            if isinstance(e, library.UploadRejected):
+                raise
+            raise library.UploadRejected("The upload could not be read") from e
+        finally:
+            if st["fh"]:
+                st["fh"].close()
+        if not st["seen"]:
+            raise library.UploadRejected("No file in the upload")
+        status, rec = await run_in_threadpool(library.add_upload, tmp, st["name"], st["sha"].hexdigest())
+    except library.UploadRejected as e:
+        tmp.unlink(missing_ok=True)
+        raise HTTPException(e.status, str(e))
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+    return {"status": status, "file": library.public(rec)}
+
+
+FileId = PathParam(..., ge=1, le=2 ** 62)   # a row id; a bigger int would overflow SQLite (a 500)
+
+
+def _rec_or_404(fid: int) -> dict:
+    rec = library.get(fid)
+    if not rec:
+        raise HTTPException(404, "No such workbook")
+    return rec
+
+
+@app.get("/api/files/{fid}")
+def files_get(fid: int = FileId):
+    return library.public(_rec_or_404(fid))
+
+
+@app.post("/api/files/{fid}/rebuild")
+async def files_rebuild(fid: int = FileId):
+    _rec_or_404(fid)
+    try:
+        rec = await run_in_threadpool(library.rebuild, fid)
+    except library.Busy as e:
+        raise HTTPException(409, str(e))
+    return {"file": library.public(rec)}
+
+
+@app.delete("/api/files/{fid}")
+async def files_delete(fid: int = FileId):
+    _rec_or_404(fid)
+    try:
+        await run_in_threadpool(library.remove, fid)
+    except library.Busy as e:
+        raise HTTPException(409, str(e))
+    return {"removed": fid}
+
+
+# ---- diagnostics for one model (shapes level: the anonymised report; see modelatlas/diagnose.py) ------------------
+
+def _diagnose(path: Path) -> dict:
+    args = SimpleNamespace(report=str(ROOT / "diag"), level="shapes", depth=6, max_rows=300, tests=False, only=None)
+    with _DIAG_LOCK:
+        row, _excs, _scanner = diagnose.process(path, OUT, args, None)
+    token = row["token"]
+    return {"token": token, "blocked": bool(row.get("blocked")),
+            "report_md": None if row.get("blocked") else f"/api/diag/{token}/report.md"}
+
+
+@app.post("/api/workbook/{fid}/diagnose")
+async def workbook_diagnose(fid: str):
+    _, path = _model_db(fid)
+    try:
+        return await run_in_threadpool(_diagnose, path)
+    except Exception as e:   # noqa: BLE001 (a model.db the stages cannot even open)
+        raise HTTPException(500, f"The diagnostics could not run ({type(e).__name__})")
+
+
+@app.get("/api/diag/{token}/{name}")
+def diag_file(token: str, name: str):
+    """The anonymised shapes report only; the _blocked notes and the full level hold real names and are never served."""
+    if not _TOKEN.match(token) or name not in ("report.md", "report.json"):
+        raise HTTPException(404, "No such report")
+    path = ROOT / "diag" / token / name
+    if not path.is_file():
+        raise HTTPException(404, "No such report")
+    return FileResponse(path, media_type="text/markdown; charset=utf-8" if name.endswith(".md") else "application/json",
+                        headers={"Content-Disposition": f'inline; filename="{token}-{name}"'})
 
 
 def main() -> None:

@@ -629,26 +629,34 @@ def folder_token(folder: str) -> str:
 
 
 def registry_rows(out_root: Path, folder: str, sha8: str | None) -> list[dict] | None:
-    """The registry rows of this model ([] without a registry; None when registry.db is there but cannot be read)."""
-    reg = out_root / "registry.db"
-    if not reg.exists():
-        return []
-    try:
-        db = rodb.connect(reg)
-        cur = db.execute("SELECT * FROM files")   # every column there is (an older registry lacks some)
-        cols = [c[0] for c in cur.description]
-        rows = [dict(zip(cols, r)) for r in cur]
-        db.close()
-    except Exception:  # noqa: BLE001 (a registry that is there but cannot be read: its names cannot be scanned for)
-        return None
+    """The registry rows of this model, from out/registry.db and from out/atlas.db (the workbooks dropped on the
+    dashboard, modelatlas/library.py): [] without either; None when one is there but cannot be read."""
     hit = []
-    for r in rows:
-        names = {Path(str(r.get("out_dir") or "").replace("\\", "/")).name,
-                 Path(str(r.get("db_path") or "").replace("\\", "/")).parent.name}
-        if folder in names or (sha8 and str(r.get("sha256") or "").startswith(sha8)):
-            if r.get("source_path"):
-                r["source_name"] = Path(str(r["source_path"]).replace("\\", "/")).name
-            hit.append(r)
+    for name in ("registry.db", "atlas.db"):
+        reg = out_root / name
+        if not reg.exists():
+            continue
+        try:
+            db = rodb.connect(reg)
+            try:
+                cur = db.execute("SELECT * FROM files")   # every column there is (an older registry lacks some)
+                cols = [c[0] for c in cur.description]
+                rows = [dict(zip(cols, r)) for r in cur]
+            finally:
+                db.close()
+        except Exception:  # noqa: BLE001 (a registry that is there but cannot be read: its names cannot be scanned for)
+            return None
+        for r in rows:
+            names = {Path(str(r.get("out_dir") or "").replace("\\", "/")).name,
+                     Path(str(r.get("db_path") or "").replace("\\", "/")).parent.name}
+            if folder in names or (sha8 and str(r.get("sha256") or "").startswith(sha8)):
+                if r.get("source_path"):
+                    r["source_name"] = Path(str(r["source_path"]).replace("\\", "/")).name
+                if name == "atlas.db":
+                    # the upload's own name, not the folders above it: those are this repo's uploads/<sha12>/,
+                    # not a deal folder, and their words ('python', 'uploads') would block every report
+                    r["source_path"] = None
+                hit.append(r)
     return hit
 
 
@@ -1509,7 +1517,7 @@ def gate(ctx: Ctx, rep: dict, md: str) -> list[str]:
             found.add("<non-ASCII text>")
     found |= {f"<unexpected key {k}>" for k in bad_keys(rep)}
     if getattr(ctx, "registry_unreadable", False):
-        found.add("<registry.db could not be read, so the registry's names were not scanned for>")
+        found.add("<registry.db or atlas.db could not be read, so the registry's names were not scanned for>")
     return sorted(found)
 
 

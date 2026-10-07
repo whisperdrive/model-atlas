@@ -61,6 +61,8 @@ main { max-width: 1240px; margin: 0 auto; padding: 20px 24px 48px; display: grid
 .tile b { display: block; font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.2; }
 .tile span { font-size: 13px; color: var(--muted); }
 .scroll { overflow-x: auto; }
+.acts { display: inline-flex; gap: 4px; white-space: nowrap; }
+.acts .btn { padding: 2px 8px; font-size: 12px; }
 table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
 th { text-align: left; font-weight: 500; font-size: 12px; color: var(--muted); padding: 6px 10px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
 td { padding: 7px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
@@ -163,6 +165,20 @@ dialog { background: var(--surface); color: var(--ink); border: 1px solid var(--
 dialog::backdrop { background: rgb(0 0 0 / .45); }
 #onto { text-decoration: none; color: var(--ink); }
 [id^="blk-"] { scroll-margin-top: 72px; }
+
+/* Dropping workbooks on the portfolio page, and the progress of a build. */
+.dz { border: 2px dashed var(--rule); border-radius: 10px; padding: 18px 16px; text-align: center; color: var(--muted); background: var(--surface); margin-bottom: 14px; }
+.dz.over { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
+.dz b { color: var(--ink); font-weight: 500; }
+.dz label.pick { color: var(--accent); text-decoration: underline; cursor: pointer; }
+.dz input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.dz:focus-within label.pick { outline: 2px solid var(--accent); outline-offset: 2px; }
+ul.ups { list-style: none; margin: 10px 0 0; padding: 0; text-align: left; font-size: 13.5px; display: grid; gap: 4px; }
+ul.ups li { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pbar { height: 6px; border-radius: 3px; background: var(--code-bg); overflow: hidden; min-width: 120px; margin-top: 4px; }
+.pbar > i { display: block; height: 100%; background: var(--accent); }
+.step { font-size: 12px; color: var(--muted); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+td.acts { white-space: nowrap; } td.acts .btn { padding: 1px 8px; font-size: 12px; margin-left: 4px; }
 @media (max-width: 900px) {
   .wbl { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   nav.side { position: sticky; top: 52px; z-index: 4; background: var(--ground); margin: 0 -16px; padding: 4px 16px; border-bottom: 1px solid var(--rule); overflow-x: auto; }
@@ -220,33 +236,145 @@ function axes(stacked, horizontal) {
 const legendOpts = () => ({ position: "top", align: "start", labels: { color: tok("--ink"), boxWidth: 12, boxHeight: 12, useBorderRadius: true, borderRadius: 2, font: { family: tok("--sans"), size: 12 } } });
 const barDs = (label, data, color) => ({ label, data, backgroundColor: tok(color), borderColor: tok("--surface"), borderWidth: 1, borderRadius: 4, borderSkipped: "start", maxBarThickness: 28 });
 
-/* ---------- Portfolio (registry.db) ---------- */
-async function portfolio() {
-  $("#crumb").textContent = "";
-  const d = await getJSON("/api/portfolio"); last = d;
-  const f = d.files, u = d.usage;
-  const done = f.filter(x => x.status === "done" || x.status === "built");
-  const spendByFile = Object.fromEntries((u?.by_file || []).map(r => [r.file_id, r]));
+/* ---------- Portfolio (workbooks dropped here, plus those built from the command line) ---------- */
+let ups = [], pollTimer = null;   // ups: what the drop zone is saying about each file this visit; pollTimer: refreshes rows that are still building
+const ACTIVE = x => x.status === "queued" || x.status === "building";
+const statusCell = x => x.status === "done" ? '<span class="pill ok">✓ done</span>'
+  : x.status === "built" ? '<span class="pill ok">✓ built</span>'
+  : x.status === "error" ? `<span class="pill bad" title="${esc(x.error)}">✕ error</span>`
+  : x.status === "building" ? `<span class="pill">building ${Math.round(x.pct || 0)}%</span><div class="pbar" role="progressbar" aria-valuenow="${Math.round(x.pct || 0)}" aria-valuemin="0" aria-valuemax="100"><i style="width:${Math.max(2, x.pct || 0)}%"></i></div><div class="step" title="${esc(x.step)}">${esc(x.step)}</div>`
+  : x.status === "queued" ? '<span class="pill">queued</span>' : `<span class="pill">${esc(x.step || x.status)}</span>`;
+const upActs = x => x.source !== "upload" || x.status === "building" ? "" : `<span class="acts"><button class="btn" data-act="rebuild" data-id="${esc(x.id)}" title="Build the model database again">Rebuild</button><button class="btn" data-act="remove" data-id="${esc(x.id)}" title="Delete the upload and its model database">Remove</button></span>`;
+
+function wbTable(f, u) {
   const byId = Object.fromEntries(f.map(x => [x.id, x]));
-  const status = x => x.status === "done" ? '<span class="pill ok">✓ done</span>'
-    : x.status === "built" ? '<span class="pill ok">✓ built</span>'
-    : x.status === "error" ? `<span class="pill bad" title="${esc(x.error)}">✕ error</span>` : `<span class="pill">${esc(x.step || x.status)}</span>`;
-  $("#main").innerHTML = `
-    <div class="tiles">
-      <div class="tile"><b>${fmtN(f.length)}</b><span>workbooks (${fmtN(done.length)} processed)</span></div>
+  const spendByFile = Object.fromEntries((u?.by_file || []).map(r => [r.file_id, r]));
+  const spend = x => x.source === "registry" ? spendByFile[String(x.id).slice(4)] : null;
+  return tbl(f, [["Workbook", x => `<b style="font-weight:500">${esc(x.filename)}</b>${x.previous_id ? `<div class="muted" style="font-size:12px">new version of ${esc(byId[x.previous_id]?.filename || "#" + x.previous_id)}</div>` : ""}${upActs(x) ? `<div style="margin-top:4px">${upActs(x)}</div>` : ""}`],
+    ["Status", statusCell], ["Source", x => `<span class="pill${x.source === "upload" ? "" : " cli"}">${esc(x.source)}</span>`], ["Target", x => esc(x.target_name) || '<span class="muted">–</span>'],
+    ["Valuation date", x => esc(x.valuation_date) || '<span class="muted">–</span>'],
+    ["Sheets", x => fmtN(x.sheets), 1], ["Line items", x => fmtN(x.line_items), 1], ["Size", x => bytes(x.size), 1],
+    ["Build", x => x.build_secs != null ? x.build_secs.toFixed(1) + "s" : "–", 1],
+    ...(u ? [["Spend", x => spend(x) ? usd(spend(x).cost_usd) : "–", 1]] : []), ["Uploaded", x => date(x.uploaded_at), 1]],
+    x => x.db_ok ? ` class="link" tabindex="0" data-id="${esc(x.id)}"` : "");
+}
+
+function wireTable() {
+  document.querySelectorAll("tr.link").forEach(tr => {
+    const go = () => location.hash = "#/wb/" + encodeURIComponent(tr.dataset.id);
+    tr.onclick = go; tr.onkeydown = e => { if (e.key === "Enter" && e.target === tr) go(); };
+  });
+  document.querySelectorAll("button[data-act]").forEach(b => {
+    b.onclick = async e => {
+      e.stopPropagation();
+      const x = last?.files.find(r => String(r.id) === b.dataset.id);
+      if (b.dataset.act === "remove" && !confirm(`Remove ${x?.filename || "this workbook"}? Its saved upload and model database are deleted.`)) return;
+      b.disabled = true;
+      try {
+        const r = await fetch(`/api/files/${encodeURIComponent(b.dataset.id)}` + (b.dataset.act === "rebuild" ? "/rebuild" : ""), { method: b.dataset.act === "rebuild" ? "POST" : "DELETE" });
+        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+      } catch (err) { alert(err.message); }
+      refreshTable();
+    };
+  });
+}
+
+/* Re-read the portfolio and redraw the tiles and the table only (the drop zone keeps its lines); keep doing so while a build is running. */
+async function refreshTable() {
+  clearTimeout(pollTimer);
+  if (!$("#wb-card")) return;
+  try {
+    const d = await getJSON("/api/portfolio"); last = d;
+    if (!$("#wb-card")) return;
+    $("#p-tiles").innerHTML = ptiles(d);
+    $("#wb-tbl").innerHTML = wbTable(d.files, d.usage);
+    wireTable();
+    if (d.files.some(ACTIVE)) pollTimer = setTimeout(refreshTable, 1000);
+  } catch { pollTimer = setTimeout(refreshTable, 3000); }
+}
+
+const ptiles = d => {
+  const f = d.files, u = d.usage, done = f.filter(x => x.status === "done" || x.status === "built");
+  return `<div class="tile"><b>${fmtN(f.length)}</b><span>workbooks (${fmtN(done.length)} processed)</span></div>
       <div class="tile"><b>${fmtN(done.reduce((a, x) => a + (x.sheets || 0), 0))}</b><span>sheets</span></div>
       <div class="tile"><b>${fmtN(done.reduce((a, x) => a + (x.line_items || 0), 0))}</b><span>line items</span></div>
       ${u ? `<div class="tile"><b>${usd(u.total.cost_usd)}</b><span>model spend at list price</span></div>
-      <div class="tile"><b>${fmtN(u.total.calls)}</b><span>model calls${u.total.since ? " since " + date(u.total.since) : ""}</span></div>` : ""}
-    </div>
-    <div class="card"><h2>Workbooks</h2><p class="sub">Select a processed workbook to see its structure and dependencies.</p>
-      ${tbl(f, [["Workbook", x => `<b style="font-weight:500">${esc(x.filename)}</b>${x.previous_id ? `<div class="muted" style="font-size:12px">new version of ${esc(byId[x.previous_id]?.filename || "#" + x.previous_id)}</div>` : ""}`],
-        ["Status", status], ["Source", x => `<span class="pill${x.source === "upload" ? "" : " cli"}">${esc(x.source)}</span>`], ["Target", x => esc(x.target_name) || '<span class="muted">–</span>'],
-        ["Valuation date", x => esc(x.valuation_date) || '<span class="muted">–</span>'],
-        ["Sheets", x => fmtN(x.sheets), 1], ["Line items", x => fmtN(x.line_items), 1], ["Size", x => bytes(x.size), 1],
-        ["Build", x => x.build_secs != null ? x.build_secs.toFixed(1) + "s" : "–", 1],
-        ["Spend", x => spendByFile[x.id] ? usd(spendByFile[x.id].cost_usd) : "–", 1], ["Uploaded", x => date(x.uploaded_at), 1]],
-        x => x.db_ok ? ` class="link" tabindex="0" data-id="${esc(x.id)}"` : "")}
+      <div class="tile"><b>${fmtN(u.total.calls)}</b><span>model calls${u.total.since ? " since " + date(u.total.since) : ""}</span></div>` : ""}`;
+};
+
+/* ---- ingestion: fingerprint in the browser, ask whether the server has it, upload with progress, then poll the build ---- */
+const sha256hex = async file => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", await file.arrayBuffer()))).map(b => b.toString(16).padStart(2, "0")).join("");
+function drawUps() {
+  const ul = $("#ups"); if (!ul) return;
+  ul.innerHTML = ups.map(o => `<li><span class="mono">${esc(o.name)}</span> ${o.html}</li>`).join("");
+}
+function upload(file, o) {
+  return new Promise(resolve => {
+    const xhr = new XMLHttpRequest(), fd = new FormData();
+    fd.append("file", file, file.name);
+    xhr.open("POST", "/api/files");
+    xhr.upload.onprogress = e => { if (e.lengthComputable) { o.html = `uploading ${Math.round(100 * e.loaded / e.total)}%`; drawUps(); } };
+    xhr.onerror = () => resolve({ error: "The upload failed (the server did not answer, or stopped reading a file over its size limit)" });
+    xhr.onabort = () => resolve({ error: "The upload was cancelled" });
+    xhr.onload = () => {
+      let d = {}; try { d = JSON.parse(xhr.responseText); } catch { /* not JSON */ }
+      const detail = Array.isArray(d.detail) ? d.detail.map(e => e.msg).join("; ") : d.detail;
+      resolve(xhr.status < 300 ? d : { error: detail || xhr.statusText });
+    };
+    xhr.send(fd);
+  });
+}
+/* Polls one build until it is done or failed, and only while the portfolio page is shown: portfolio() picks the
+   unfinished ones up again on the way back (o.id, o.final, o.polling). */
+async function pollFile(id, o) {
+  o.id = id; o.polling = true;
+  try {
+    for (;;) {
+      if (!$("#ups")) return;
+      let r;
+      try { r = await getJSON("/api/files/" + id); } catch (err) { o.final = true; o.html = `<span class="pill bad">${esc(err.message)}</span>`; drawUps(); return; }
+      if (r.status === "done") { o.final = true; o.html = `<span class="pill ok">✓ done</span> <a href="#/wb/${esc(r.id)}">open</a>`; drawUps(); return; }
+      if (r.status === "error") { o.final = true; o.html = `<span class="pill bad" title="${esc(r.error)}">✕ error</span> <span class="muted">${esc(r.error)}</span>`; drawUps(); return; }
+      o.html = `<span class="pill">${esc(r.status)}${r.status === "building" ? " " + Math.round(r.pct || 0) + "%" : ""}</span> <span class="muted">${esc(r.step || "")}</span>`;
+      drawUps();
+      await new Promise(res => setTimeout(res, 1000));
+    }
+  } finally { o.polling = false; }
+}
+async function ingest(file) {
+  const o = { name: file.name, html: "fingerprinting…" };
+  ups.unshift(o); drawUps();
+  if (!/\.xls[xm]$/i.test(file.name)) { o.html = '<span class="pill bad">✕ only .xlsx and .xlsm</span>'; drawUps(); return; }
+  try {
+    if (window.crypto?.subtle) {   // only on https or localhost; without it the server fingerprints the upload and answers the same way
+      const sha = await sha256hex(file);
+      const c = await getJSON("/api/files/check?sha=" + sha);
+      if (c.file) { o.html = `already here: <a href="#/wb/${esc(c.file.id)}">${esc(c.file.filename)}</a> (${esc(c.file.status)})`; drawUps(); refreshTable(); return; }
+    }
+    o.html = "uploading 0%"; drawUps();
+    const d = await upload(file, o);
+    if (d.error) { o.html = `<span class="pill bad">✕ ${esc(d.error)}</span>`; drawUps(); return; }
+    if (d.status === "exists") { o.html = `already here: <a href="#/wb/${esc(d.file.id)}">${esc(d.file.filename)}</a> (${esc(d.file.status)})`; drawUps(); refreshTable(); return; }
+    o.html = '<span class="pill">queued</span>'; drawUps();
+    refreshTable();
+    await pollFile(d.file.id, o);
+  } catch (err) { o.html = `<span class="pill bad">✕ ${esc(err.message)}</span>`; drawUps(); }
+}
+const ingestAll = files => Promise.all([...files].map(ingest)).then(() => refreshTable());
+
+async function portfolio() {
+  $("#crumb").textContent = "";
+  clearTimeout(pollTimer);
+  const d = await getJSON("/api/portfolio"); last = d;
+  const f = d.files, u = d.usage;
+  $("#main").innerHTML = `
+    <div class="dz" id="dz"><b>Drop .xlsx / .xlsm here</b> or <label class="pick" for="pick">choose files</label>
+      <input type="file" id="pick" accept=".xlsx,.xlsm" multiple>
+      <div class="muted" style="font-size:12px;margin-top:4px">Each file is fingerprinted in the browser, saved under uploads/ and built into a model database in the background.</div>
+      <ul class="ups" id="ups" aria-live="polite"></ul></div>
+    <div class="tiles" id="p-tiles">${ptiles(d)}</div>
+    <div class="card" id="wb-card"><h2>Workbooks</h2><p class="sub">Select a processed workbook to see its structure and dependencies.</p>
+      <div id="wb-tbl">${wbTable(f, u)}</div>
     </div>
     ${u ? `<div class="grid2">
       <div class="card"><h2>Spend by day</h2><p class="sub">USD at list price, by what the call was for.</p><div class="chart"><canvas id="c-day"></canvas></div></div>
@@ -254,10 +382,15 @@ async function portfolio() {
         ${tbl(u.by_model, [["Model", r => `<span class="mono">${esc(r.model)}</span>`], ["", r => `<div class="bar" style="width:${Math.max(2, 100 * r.cost_usd / (u.by_model[0].cost_usd || 1))}%" title="${usd(r.cost_usd)}"></div>`, "bar"],
           ["Calls", r => fmtN(r.calls), 1], ["Tokens", r => kfmt(r.input_tokens + r.output_tokens), 1], ["Spend", r => usd(r.cost_usd), 1]])}</div>
     </div>` : ""}`;
-  document.querySelectorAll("tr.link").forEach(tr => {
-    const go = () => location.hash = "#/wb/" + encodeURIComponent(tr.dataset.id);
-    tr.onclick = go; tr.onkeydown = e => { if (e.key === "Enter") go(); };
-  });
+  wireTable();
+  drawUps();
+  ups.filter(o => o.id != null && !o.final && !o.polling).forEach(o => pollFile(o.id, o));
+  const dz = $("#dz");
+  for (const ev of ["dragenter", "dragover"]) dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add("over"); });
+  for (const ev of ["dragleave", "drop"]) dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove("over"); });
+  dz.addEventListener("drop", e => ingestAll(e.dataTransfer.files));
+  $("#pick").onchange = e => { const fs = [...e.target.files]; e.target.value = ""; ingestAll(fs); };
+  if (f.some(ACTIVE)) pollTimer = setTimeout(refreshTable, 1000);
   if (u?.by_day_purpose.length) {
     const days = [...new Set(u.by_day_purpose.map(r => r.day))];
     // Fixed order, so a colour stays with its purpose; anything past four folds into "Other".
@@ -328,6 +461,8 @@ async function workbook(id, sec, force) {
       </nav>
       <div class="secs">
         ${sec_("model", "What is this model?", `${d.target_name || d.valuation_date ? esc(d.target_name || "") + (d.project_name ? " &middot; " + esc(d.project_name) : "") + (d.valuation_date ? " &middot; valued at " + esc(d.valuation_date) : "") : "Its size, shape and the sheets it is made of."}`, `
+          <div class="card" id="diag-card" style="margin-bottom:12px"><div class="twhead"><button class="btn" id="diag-run" title="Writes the anonymised shapes report under diag/">Run diagnostics (shapes only)</button>
+            <span class="muted" style="font-size:13px" id="diag-out">An anonymised report of the model's shapes; it names no sheet, label or number of the model.</span></div></div>
           <div class="tiles" id="tiles"></div>
           <div id="prof"></div>
           <div class="stack">
@@ -361,6 +496,20 @@ async function workbook(id, sec, force) {
       plugins: { legend: legendOpts(), tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${fmtN(c.raw)}` } } },
       scales: { ...axes(true, true), x: { ...axes(true, true).x, ticks: { ...axes(true, true).x.ticks, callback: v => kfmt(v) } } } } }));
   heatmap(e.flows, d.sheets.map(s => s.sheet));
+  $("#diag-run").onclick = async () => {
+    const btn = $("#diag-run"), out = $("#diag-out");
+    btn.disabled = true; out.textContent = "Running the diagnostics…";
+    try {
+      const r = await fetch(`/api/workbook/${enc}/diagnose`, { method: "POST" });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(Array.isArray(j.detail) ? j.detail.map(e => e.msg).join("; ") : j.detail || r.statusText);
+      if (!$("#diag-out")) return;
+      out.innerHTML = j.blocked
+        ? `<span class="pill bad">blocked by the self-scan</span> The report was not written because it would have carried strings of this model. A local-only note, <span class="mono">diag/_blocked/${esc(j.token)}.txt</span>, says which; it is never served here.`
+        : `<span class="pill ok">✓ done</span> <a href="${esc(j.report_md)}" target="_blank" rel="noopener">report.md</a> <span class="muted">(${esc(j.token)})</span>`;
+    } catch (err) { if ($("#diag-out")) out.innerHTML = `<span class="pill bad">✕ ${esc(err.message)}</span>`; }
+    finally { btn.disabled = false; }
+  };
   const load = debounce(() => loadRows(id), 200);
   $("#q").oninput = load; $("#sheet").onchange = load;
   loadRows(id);

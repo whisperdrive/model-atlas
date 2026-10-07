@@ -10,3 +10,4 @@ tests/sample_models/
 *.xls
 ~$*
 .env
+uploads/
