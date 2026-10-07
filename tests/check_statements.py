@@ -154,7 +154,7 @@ def _years(n=6):
 
 
 def minimal(path: Path, check=False, no_bs=False, quarterly_cf=False, flag=False, line_items=False, net_assets=False,
-            imbalance=0.0, extra=False, faint_equity=False, plug=False):
+            imbalance=0.0, extra=False, faint_equity=False, plug=False, dates=None):
     """Sheet M: revenue + costs = EBITDA, + tax = NPAT; a cash corkscrew and a retained earnings corkscrew; a balance sheet
     (cash, other assets; debt; share capital, retained earnings) that balances. Labels are plain on purpose.
       flag          the balance check carries a typed enable flag (1) after the last period, as models often do
@@ -164,12 +164,13 @@ def minimal(path: Path, check=False, no_bs=False, quarterly_cf=False, flag=False
       imbalance     other assets overstated by this much: the balance sheet does not balance
       extra         rows for the stale test: 1e9-scale operands whose difference is saved as 0, and -x^2
       faint_equity  total equity is a few cents against assets of millions
-      plug          total equity = total assets - total liabilities, so the balance sheet balances whatever the rest says"""
+      plug          total equity = total assets - total liabilities, so the balance sheet balances whatever the rest says
+      dates         the period end dates (default: six financial years ending 30 June); the model has len(dates) periods"""
     wb = xlsxwriter.Workbook(str(path))
     ws = wb.add_worksheet("M")
     fmt = wb.add_format({"num_format": "dd-mmm-yy"})
-    n = 6
-    ys = _years(n)
+    ys = list(dates) if dates else _years(6)
+    n = len(ys)
     cols = [chr(ord("D") + i) for i in range(n)]
     ws.write(2, 0, "Period ending")
     for c, d in zip(cols, ys):

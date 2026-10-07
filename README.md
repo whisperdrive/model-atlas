@@ -6,6 +6,7 @@ values and formulas alone it:
 - builds a row-level map of the workbook and the edges between line items;
 - traces a DCF value to the rows it rests on and puts each one in a class;
 - finds the model's statements and schedules by the identities they satisfy, and tests those identities;
+- lays the three statements out in one fixed format, from the model's own rows or derived from its schedules;
 - draws the dependency graph as a standalone report;
 - serves a read-only dashboard over the built databases;
 - runs the whole analysis over many models as anonymised diagnostic runs, for a machine that cannot send anything out.
@@ -18,6 +19,7 @@ uv sync
 uv run atlas-build "path/to/model.xlsx"      # row map + SQLite store into out/<name>/ (run once per workbook)
 uv run atlas-graph out/<name>/model.db        # DCF dependency graph, writes out/<name>/depgraph.html
 uv run atlas-statements out/<name>/model.db   # statements, identities and findings
+uv run atlas-threeway out/<name>/model.db [--fy]   # P&L, cash flow and balance sheet, checks and residuals
 uv run atlas-dashboard                        # read-only dashboard on http://localhost:8001
 uv run atlas-diagnose out/ --report diag/     # anonymised report per model
 ```
@@ -27,7 +29,7 @@ graph report footer, the statements text and the JSON of the graph, statements a
 `__version__` in `modelatlas/__init__.py`; pyproject reads it from there.
 
 Each command has a `python -m` equivalent: `modelatlas.build_map`, `modelatlas.depgraph`, `modelatlas.statements`,
-`modelatlas.diagnose`, `modelatlas.census` (per-sheet formula and constant counts, `atlas-census`) and
+`modelatlas.threeway`, `modelatlas.diagnose`, `modelatlas.census` (per-sheet formula and constant counts, `atlas-census`) and
 `modelatlas.edges` (rebuilds the edges of an older model.db in place). Works on `.xlsx` and `.xlsm`; `.xlsb` and `.xls`
 have no formulas to read here. Outputs go to `out/<workbook name>/` (`map.txt`, `model.db`, and `depgraph.html` once
 the graph has run). `out/` is git-ignored.
@@ -77,6 +79,31 @@ where a typed number breaks a row of formulas. The identities and roles are writ
 which `modelatlas/ontology.py` generates (`uv run python -m modelatlas.ontology --write docs/model_ontology.md`) and a
 test keeps in step.
 
+## Three statements (modelatlas/threeway.py)
+`threeway.py` lays the P&L, cash flow and balance sheet out from the blocks `statements.py` bound, in one fixed order of
+lines (so two models' statements line up), costs and outflows negative. Where the model has a statement its own rows are
+**extracted**; where it does not, the lines are **derived** from the schedules (revenue build, fixed-assets, debt and
+equity roll-forwards, capex) and from the other statements, or are `missing` (shown as not found, never invented). A
+statement is `extracted`, `derived`, `partial` or `none`; every line says where it came from (source rows, the formula of
+a derived line, notes such as "sign flipped" or "opening cash not found; cumulative from the first period").
+Identities between the lines are checks (`holds`, `fails`, or `unbound` when a line is missing, or is derived rather
+than the model's own row: computed from the other lines it cannot differ, and taken from elsewhere it does not test the
+model). A CSV text cell that would start a formula (`=`, `+`, `-`, `@`) is written with a leading apostrophe.
+
+A balance sheet built from schedules does not know its opening balances, so it is compared by how it **moves**: the
+change in assets less the change in liabilities and equity, each built from the roll-forward movements. The residual
+analysis splits any movement that is not zero into what could explain it (profit against operating cash, depreciation
+in the schedule against the P&L, capex against fixed-asset additions, debt flows against the debt balance, distributions
+paid against distributions that reach retained earnings), each with a one-sentence reading, and says when a comparison is
+no test because one side was taken from the other's own schedule. It runs on an extracted balance sheet that does not
+balance too. `by="fy"` (`--fy`) aggregates to financial years: flows sum, stocks take the last period of the year
+(opening cash the first), a year with fewer periods than a full year is marked partial, checks and residuals are
+recomputed. The dashboard shows it as section 5 (`#/wb/<id>/statements`), with a period / financial-year toggle and a
+CSV download per statement (`/api/workbook/<id>/threeway.csv?statement=pnl&by=fy`).
+```bash
+uv run python -m modelatlas.threeway out/<dir>/model.db [--fy] [--fy-end-month N] [--json path] [--csv dir]
+```
+
 ## The dashboard (modelatlas/dashboard/)
 ```bash
 uv run atlas-dashboard                                              # http://localhost:8001
@@ -84,11 +111,11 @@ uv run uvicorn modelatlas.dashboard.server:app --port 8001          # the same, 
 ```
 It reads the `out/` folder of the directory it is started in, or the folder named by `ATLAS_OUT`. Every
 `out/<name>/model.db` is listed as a command-line build; an `out/registry.db`, if one happens to be there, is read as
-well, but nothing needs it. A workbook opens as one page of four questions, each deep-linkable (`#/wb/<id>/holds`):
+well, but nothing needs it. A workbook opens as one page of five sections, each deep-linkable (`#/wb/<id>/holds`):
 **What is this model?** (size, sheets and their roles, profile, line-item search); **How is the value built?** (the
 dependency graph); **Does it hold together?** (findings, statement blocks and how each row was bound, identities as tests
 versus structure confirmed, the model's own checks); **What should I look at?** (pattern breaks, stale cells, scenario
-inputs). `#/ontology` lists the blocks, roles and identities the detector works from. Every database is opened read-only.
+inputs); **The three statements** (the P&L, cash flow and balance sheet in a fixed layout, with checks and residuals). `#/ontology` lists the blocks, roles and identities the detector works from. Every database is opened read-only.
 
 ## Diagnostic runs (modelatlas/diagnose.py)
 Runs the pipeline (census, formula families, sheet and row graphs, the DCF dependency graph, statement identities) over
@@ -120,7 +147,7 @@ report before pointing it at real ones.
 ## Fixtures and tests
 All test workbooks are synthetic and generated into `tests/sample_models/` (git-ignored):
 ```bash
-uv run python tests/make_threeway_model.py      # a three-statement infrastructure model ("Harbourline") and four altered variants
+uv run python tests/make_threeway_model.py      # a three-statement infrastructure model ("Harbourline"), four altered variants, and a schedules-only one
 uv run python tests/make_sample_models.py       # a toll road ("Riverbend", code name "Kestrel"): client model, the same with valuation sheets inside, the next year's model
 uv run python tests/make_trace_workbook.py      # a quarterly overlay with valuations by XNPV, SUMPRODUCT, a PV row and an NPV
 for t in tests/check_*.py; do uv run python "$t"; done
@@ -140,8 +167,21 @@ real model in `out/` skip when it is absent.
 - A second balance sheet on the same sheet as the first is listed as an alternate, not bound.
 - A balance sheet whose equity is typed in as a plug (rather than computed as assets less liabilities) is found only
   when the typed numbers make the identity hold; otherwise the identity is unbound.
+- Three statements: a line the model's statement lacks is derived only from what the blocks bound (no label search of
+  the sheets, except a costs total and the debt schedule's interest row), so an unbound ingredient (a tax row, a capex
+  line) stays `missing` and the balance sheet movement then says it is no test. Derived cash is cumulative from the
+  first period unless a cash roll-forward gives its opening, so its level differs from the model's by a constant; the
+  sources-and-uses block (one column, on no timeline) is not placed in a period. Interest paid is taken as interest
+  charged and tax paid as tax charged when the model has no cash rows. One period axis (the periodicity most bound
+  rows share); rows on another timeline show only where their dates coincide.
 - An identity whose rows are on different periodicities (monthly against annual) is left unbound rather than
   compared.
+- The three statements put every line on one timeline, the periodicity most bound rows share; a row on another
+  periodicity is sampled at those dates, so a quarterly flow shown against an annual timeline is one quarter, not the
+  year. Timelines dated at the start of each period group into financial years correctly only where the start month
+  happens to match; the detector does not yet tell start dates from end dates.
+- A derived balance sheet assumes share capital does not move, so a model with an equity contribution in its cash
+  flow shows a movement-check failure that the note and the unexplained line disclose.
 - The report's "Fit to view" button shrinks the graph as far as it must, which on a very large graph is small; zoom in
   from there.
 - `outputs.carry` (last year's schedule onto this year's) and the chart payloads of `valuation.validation` /

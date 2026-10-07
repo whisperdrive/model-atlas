@@ -18,9 +18,9 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 
-from .. import NOTICE, __version__, depgraph, depgraph_html, diagnose, ontology, rodb, statements, version_line
+from .. import NOTICE, __version__, depgraph, depgraph_html, diagnose, ontology, rodb, statements, threeway, version_line
 
 ROOT = Path(__file__).resolve().parents[2]  # the project root
 OUT = Path(os.environ.get("ATLAS_OUT", "out")).resolve()  # ./out under the current directory, or ATLAS_OUT
@@ -263,6 +263,31 @@ def _detect(path: Path) -> dict:
 async def workbook_statements(fid: str):
     _, path = _model_db(fid)
     return await run_in_threadpool(_detect, path)
+
+
+def _threeway(path: Path, by: str, fy_end_month: int | None) -> dict:
+    """The three statements, from the cached detect result; kept per (by, financial year end) like the detect."""
+    return _cached(f"threeway:{by}:{fy_end_month or ''}", path,
+                   lambda: threeway.build(str(path), result=_detect(path), by=by, fy_end_month=fy_end_month))
+
+
+@app.get("/api/workbook/{fid}/threeway")
+async def workbook_threeway(fid: str, by: str = Query("period", pattern="^(period|fy)$"),
+                            fy_end_month: int | None = Query(None, ge=1, le=12)):
+    """P&L, cash flow and balance sheet laid out from the bound blocks, with the checks and the residual analysis."""
+    _, path = _model_db(fid)
+    return await run_in_threadpool(_threeway, path, by, fy_end_month)
+
+
+@app.get("/api/workbook/{fid}/threeway.csv")
+async def workbook_threeway_csv(fid: str, statement: str = Query(..., pattern="^(pnl|cf|bs)$"),
+                                by: str = Query("period", pattern="^(period|fy)$"),
+                                fy_end_month: int | None = Query(None, ge=1, le=12)):
+    rec, path = _model_db(fid)
+    tw = await run_in_threadpool(_threeway, path, by, fy_end_month)
+    stem = re.sub(r"[^A-Za-z0-9._-]+", "_", re.sub(r"\.xls[xm]?$", "", rec["filename"], flags=re.I)).strip("._") or "workbook"
+    return Response(threeway.csv(tw, statement), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="{stem}-{statement}-{by}.csv"'})
 
 
 @app.get("/api/workbook/{fid}/profile")

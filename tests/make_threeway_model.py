@@ -16,6 +16,8 @@ carry a Total column after the last period. Revenue and cash inflows are positiv
                             structure is left to go on
   threeway_stale.xlsx       the Inputs tariff shows 2.40 but every saved result was computed at 2.10: inputs changed,
                             workbook never recalculated
+  threeway_schedules_only.xlsx  (build_schedules_only) the base model without the CashFlow, BalanceSheet and Checks
+                            sheets: P&L, equity, debt, capex and costs schedules only
   threeway_assets.xlsx      Revenue split into RevenueNorth (60%) and RevenueSouth (40%) with a Revenue sheet that
                             consolidates them; totals equal the base
 
@@ -302,6 +304,7 @@ class Ctx:
 
 def build_sheets(variant: str) -> tuple[list[Sheet], dict[str, str], list]:
     moved, assets = variant == "moved", variant == "assets"
+    schedules_only = variant == "schedules_only"
     R = Row
 
     def sec(label):
@@ -416,7 +419,7 @@ def build_sheets(variant: str) -> tuple[list[Sheet], dict[str, str], list]:
           (lambda x: f"={x.loc('open')}+{x.loc('npat')}") if variant == "unbalanced"
           else (lambda x: f"=SUM({x.loc('open')}:{x.loc('dist')})"), bold=True, total=None)]))
 
-    sheets.append(Sheet("CashFlow", "Cash flow", [
+    cash_flow_sheet = Sheet("CashFlow", "Cash flow", [
         R("open", "Opening cash", "$m",
           lambda x: f"={x.inp('open_cash')}" if x.k == 0 else f"={x.prev('close')}", total="first"),
         sec("Operating"),
@@ -439,7 +442,9 @@ def build_sheets(variant: str) -> tuple[list[Sheet], dict[str, str], list]:
         R("net", "Net cash flow", "$m",
           lambda x: f"={x.loc('cfo')}+{x.loc('cfi')}+{x.loc('cff')}", bold=True),
         R("close", "Closing cash", "$m", lambda x: f"={x.loc('open')}+{x.loc('net')}", bold=True, total="last")],
-        total_col=True))
+        total_col=True)
+    if not schedules_only:
+        sheets.append(cash_flow_sheet)
 
     bs = [
         sec("Assets"),
@@ -456,9 +461,10 @@ def build_sheets(variant: str) -> tuple[list[Sheet], dict[str, str], list]:
         R("tle", "Total liabilities and equity", "$m", lambda x: f"={x.loc('tl')}+{x.loc('te')}", bold=True,
           total=None),
         R("chk", "Balance check", "$m", lambda x: f"={x.loc('ta')}-{x.loc('tle')}", total=None, skip=moved)]
-    sheets.append(Sheet("BalanceSheet", "Balance sheet", bs))
+    if not schedules_only:
+        sheets.append(Sheet("BalanceSheet", "Balance sheet", bs))
 
-    if not moved:
+    if not moved and not schedules_only:
         def abs_sum(expr):
             return lambda x: f"=SUMPRODUCT(ABS({expr(x)}))"
         z = lambda fn: dict(fn=fn, only0=True, total=None)  # noqa: E731
@@ -613,8 +619,20 @@ def build(out_dir: Path) -> dict[str, Path]:
     return paths
 
 
+def build_schedules_only(out_dir: Path) -> Path:
+    """threeway_schedules_only.xlsx: the base model's inputs, revenue, costs, capex, debt, P&L, equity and DCF sheets, and
+    NO CashFlow, BalanceSheet or Checks sheet: the schedules are there, the cash flow and the balance sheet are not (so
+    the opening cash typed on Inputs is read by nothing). Not part of build(): the other checks count its variants."""
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / "threeway_schedules_only.xlsx"
+    write(path, "schedules_only")
+    return path
+
+
 def main() -> None:
     paths = build(OUT)
+    print(f"{'schedules':12s} {build_schedules_only(OUT).relative_to(ROOT)}")
     for role, p in paths.items():
         print(f"{role:12s} {p.relative_to(ROOT)}")
     M, V = write(OUT / "threeway_model.xlsx", "base")

@@ -21,6 +21,7 @@ atlas-build = "modelatlas.build_map:cli"
 atlas-census = "modelatlas.census:cli"
 atlas-graph = "modelatlas.depgraph:cli"
 atlas-statements = "modelatlas.statements:cli"
+atlas-threeway = "modelatlas.threeway:cli"
 atlas-diagnose = "modelatlas.diagnose:cli"
 atlas-dashboard = "modelatlas.dashboard.server:main"
 

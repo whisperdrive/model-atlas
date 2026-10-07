@@ -101,6 +101,24 @@ details summary { cursor: pointer; font-size: 14px; font-weight: 600; }
 header h1 small { font-size: 11px; font-weight: 400; }
 footer { color: var(--muted); font-size: 12px; padding: 16px 24px 24px; border-top: 1px solid var(--rule); margin-top: 24px; }
 
+/* The three statements: lines down, periods across; the first column stays put while the periods scroll. */
+.seg { display: inline-flex; } .seg .btn { border-radius: 0; margin-left: -1px; } .seg .btn:first-child { border-radius: 6px 0 0 6px; margin-left: 0; } .seg .btn:last-child { border-radius: 0 6px 6px 0; }
+.seg .btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); font-weight: 500; position: relative; }
+table.tw { width: max-content; min-width: 100%; }
+table.tw th, table.tw td { white-space: nowrap; }
+table.tw thead th.twl, table.tw tbody th.twl { position: sticky; left: 0; z-index: 1; background: var(--surface); }
+table.tw tbody th.twl { font-size: 13.5px; font-weight: 400; color: var(--ink); white-space: normal; min-width: 250px; max-width: 330px; vertical-align: top; padding: 7px 10px; }
+table.tw th.lvl1 { padding-left: 26px; }
+table.tw tr.stot th.twl, table.tw tr.stot td { font-weight: 600; border-top: 1px solid var(--ink); }
+table.tw tr.miss th.twl, table.tw tr.miss td { color: var(--muted); }
+table.tw tbody.foot tr:first-child th, table.tw tbody.foot tr:first-child td { border-top: 2px solid var(--rule); }
+.twsrc { font-size: 12px; margin-top: 2px; display: flex; gap: 4px 8px; flex-wrap: wrap; align-items: center; }
+.twsrc details { display: inline; } .twsrc details summary { display: inline; font-size: 12px; font-weight: 400; color: var(--muted); }
+.note-i { cursor: help; color: var(--muted); font-size: 12px; }
+.twhead { display: flex; gap: 8px 12px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+.twhead .sp { flex: 1; }
+.twhead a.btn { text-decoration: none; color: var(--ink); }
+
 /* Workbook page: a sticky nav on the left, the sections on one scrolling page. Status and class colours as in the dependency report. */
 .wbl { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 28px; align-items: start; }
 nav.side { position: sticky; top: 72px; font-size: 14px; }
@@ -256,7 +274,7 @@ async function portfolio() {
 }
 
 /* ---------- One workbook (its model.db): five sections on one page, deep-linked by the hash ---------- */
-const SECS = [["model", "What is this model?"], ["value", "How is the value built?"], ["holds", "Does it hold together?"], ["look", "What should I look at?"]];
+const SECS = [["model", "What is this model?"], ["value", "How is the value built?"], ["holds", "Does it hold together?"], ["look", "What should I look at?"], ["statements", "The three statements"]];
 let cur = null, spy = null, pendingSec = null;   // pendingSec: a deep-linked section to keep in view while the page above it fills in
 for (const ev of ["wheel", "touchstart", "keydown", "pointerdown"]) addEventListener(ev, () => { pendingSec = null; }, { passive: true });
 const settle = () => { if (pendingSec) scrollSec(pendingSec); };   // cur: the workbook on screen, {id, d, sheets, S, P}
@@ -295,7 +313,7 @@ function linkify(text) {
 async function workbook(id, sec, force) {
   if (!force && cur && cur.id === id && $("#wbl")) { scrollSec(sec); return; }   // same page, another section
   const d = await getJSON("/api/workbook/" + encodeURIComponent(id)); last = d;
-  cur = { id, d, sheets: d.sheets.map(s => s.sheet) };
+  cur = { id, d, sheets: d.sheets.map(s => s.sheet), tw: { by: "period", data: {} } };
   $("#crumb").textContent = "/ " + d.filename;
   const t = d.totals, e = d.edges, enc = encodeURIComponent(id);
   const sec_ = (key, q, sub, body) => `<section class="sec" id="sec-${key}" aria-labelledby="h-${key}"><h2 class="q" id="h-${key}">${q}</h2><p class="muted sub">${sub}</p>${body}</section>`;
@@ -306,7 +324,7 @@ async function workbook(id, sec, force) {
       <nav class="side" aria-label="This workbook">
         <p class="muted" style="margin:0 0 6px;font-size:12px"><span class="pill${d.source === "upload" ? "" : " cli"}">${esc(d.source)}</span></p>
         <ol>${SECS.map(([k, q], i) => `<li><a href="${hashFor(id, k)}" data-sec="${k}">${i + 1}. ${q}</a></li>`).join("")}
-        <li><a href="#/ontology">5. Reference: the ontology</a></li></ol>
+        <li><a href="#/ontology">${SECS.length + 1}. Reference: the ontology</a></li></ol>
       </nav>
       <div class="secs">
         ${sec_("model", "What is this model?", `${d.target_name || d.valuation_date ? esc(d.target_name || "") + (d.project_name ? " &middot; " + esc(d.project_name) : "") + (d.valuation_date ? " &middot; valued at " + esc(d.valuation_date) : "") : "Its size, shape and the sheets it is made of."}`, `
@@ -330,6 +348,7 @@ async function workbook(id, sec, force) {
           <div class="card"><h3>Value dependency graph</h3><p class="sub">Opens as its own report page.</p><div id="dg"><p class="muted" style="margin:0">Finding the DCFs&hellip;</p></div></div>`)}
         ${sec_("holds", "Does it hold together?", "The statements found by the identities that hold in the saved values, and whether those identities hold. Nothing here is a model call.", `<div id="holds"><p class="muted">Reading the statements&hellip;</p></div>`)}
         ${sec_("look", "What should I look at?", "Places where the model departs from its own pattern, or where a scenario changes what is live.", `<div id="look"><p class="muted">Reading&hellip;</p></div>`)}
+        ${sec_("statements", "The three statements", "The P&amp;L, cash flow and balance sheet in one fixed layout: the model's own rows where it has the statement, derived from its schedules where it does not, every line pointing at its source rows. Nothing here is a model call.", `<div id="tw"><p class="muted">Laying out the statements&hellip;</p></div>`)}
       </div>
     </div>`;
   tiles(d, null);
@@ -362,7 +381,8 @@ async function workbook(id, sec, force) {
     if (mine()) { cur.P = P; tiles(d, P); profileCard(P); sheetTable(d, P, cur.S); settle(); }
     return P;
   }).catch(err => { if (mine()) { cur.P = undefined; tiles(d, null, true); $("#prof").innerHTML = failed(err); } throw err; });
-  const [S, P] = await Promise.allSettled([sReq, pReq]);
+  const tReq = loadTW("period");   // its own request: a failed or slow layout holds back neither the statements nor the profile
+  const [S, P] = await Promise.allSettled([sReq, pReq, tReq]);
   if (!mine()) return;
   await lookSection(id, S.value, P.value);
   settle(); pendingSec = null;
@@ -532,6 +552,83 @@ async function lookSection(id, S, P) {
   }
 }
 
+/* ---------- Section 5: the three statements (modelatlas/threeway.py) ---------- */
+let twSeq = 0;
+const TW_MODE = { extracted: "ok", derived: "", partial: "warn", none: "" };
+const TW_MODE_TIP = { extracted: "Every line is the model's own row", derived: "Built from schedules and the other statements: the model's own statement was not found",
+  partial: "Some lines are the model's own rows, others derived or not found", none: "Nothing could be built" };
+const TW_CHECK_LINE = { bs_check: "bs_balance", bs_move: "bs_movement" };   // a check shown as a line of the balance sheet
+const twNum = (v, check) => {
+  if (v == null) return '<span class="muted" aria-label="not known">&middot;</span>';
+  if (Math.abs(v) < 0.05) return check ? "0.0" : "&ndash;";
+  const t = Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return v < 0 ? `(${t})` : t;
+};
+const twRefs = from => {
+  const f = (from || []).map(x => refBtn(x.sheet, x.row, `${x.sheet}!r${x.row}`));
+  return f.slice(0, 3).join(" ") + (f.length > 3 ? ` <details><summary>+${f.length - 3} more</summary>${f.slice(3).join(" ")}</details>` : "");
+};
+function twTable(T, key, enc, by) {
+  const s = T.statements[key], P = T.periods;
+  const chk = Object.fromEntries(s.checks.map(c => [c.key, c]));
+  const head = `<thead><tr><th class="twl">${esc(T.units ? "Line (" + T.units + ")" : "Line")}</th>${P.map(p => `<th class="num">${esc(p.label)}${p.partial ? ` <span title="${esc(p.n)} periods in this year" aria-label="a partial year of ${esc(p.n)} periods">*</span>` : ""}</th>`).join("")}</tr></thead>`;
+  const cells = (vals, cls) => vals.map(v => `<td class="num${cls ? " " + cls(v) : ""}">${twNum(v, !!cls)}</td>`).join("");
+  const label = l => {
+    const pill = l.source === "derived" ? ` <span class="pill" title="${esc(l.formula || "derived from the schedules")}">derived</span>`
+      : l.source === "missing" ? ' <span class="pill" title="Not found in the model, and the schedules do not give it">not found</span>' : "";
+    const note = l.note ? ` <span class="note-i" role="img" aria-label="${esc(l.note)}" title="${esc(l.note)}">&#9432;</span>` : "";
+    const src = l.from?.length ? `<div class="twsrc">${twRefs(l.from)}</div>` : "";
+    return `<th scope="row" class="twl lvl${l.level}">${esc(l.label)}${pill}${note}${src}</th>`;
+  };
+  const rows = s.lines.filter(l => l.kind !== "check").map(l =>
+    `<tr class="${l.kind === "subtotal" ? "stot" : ""}${l.source === "missing" ? " miss" : ""}">${label(l)}${cells(l.values)}</tr>`).join("");
+  const tint = st => st === "holds" ? "t-ok" : st === "fails" ? "t-bad" : "t-mu";
+  const lineChecks = s.lines.filter(l => l.kind === "check").map(l => {
+    const c = chk[TW_CHECK_LINE[l.key]], cls = tint(c?.status);
+    return `<tr>${label(l)}${l.values.map(v => `<td class="num ${cls}">${twNum(v, true)}</td>`).join("")}</tr>`;
+  }).join("");
+  const shown = new Set(Object.values(TW_CHECK_LINE));
+  const checkRows = s.checks.filter(c => !shown.has(c.key) || !s.lines.some(l => TW_CHECK_LINE[l.key] === c.key)).map(c =>
+    `<tr><th scope="row" class="twl lvl0">${esc(c.title)} ${stPill(c.status)}${c.why ? `<div class="twsrc muted">${esc(c.why)}</div>` : ""}</th>${c.residuals.map(v => `<td class="num ${tint(c.status)}">${twNum(v, true)}</td>`).join("")}</tr>`).join("");
+  const csv = `/api/workbook/${enc}/threeway.csv?${new URLSearchParams({ statement: key, by })}`;
+  return `<div class="card"><div class="twhead"><h3 style="margin:0">${esc(s.title)}</h3><span class="pill ${TW_MODE[s.mode] || ""}" title="${esc(TW_MODE_TIP[s.mode] || "")}">${esc(s.mode)}</span><span class="sp"></span>
+      <a class="btn" href="${csv}" download>Download CSV</a></div>
+    <p class="sub" style="margin-top:0">${esc(s.why)}</p>
+    <div class="scroll"><table class="tw">${head}<tbody>${rows}</tbody><tbody class="foot">${lineChecks}${checkRows}</tbody></table></div></div>`;
+}
+function twHTML(T, by) {
+  const enc = encodeURIComponent(cur.id);
+  const seg = `<div class="seg" role="group" aria-label="Periods">${[["period", "By period"], ["fy", "By financial year"]].map(([k, t]) =>
+    `<button type="button" class="btn" data-by="${k}" aria-pressed="${k === by}">${t}</button>`).join("")}</div>`;
+  const P = T.periods;
+  const info = `${fmtN(P.length)} ${by === "fy" ? "financial years ending in month " + esc(T.fy_end_month) : esc(T.periodicity || "") + " periods"}${P.some(p => p.partial) ? "; * a year with fewer periods than a full year" : ""}${T.units ? " &middot; " + esc(T.units) : ""}. Costs and outflows are negative.`;
+  const res = T.residuals, tint = st => st === "holds" ? "t-ok" : st === "fails" ? "t-bad" : "t-mu";
+  const resid = `<div class="card"><h3>Residuals</h3><p class="sub">Where the balance sheet does not balance, or moves out of step, and what could explain it: each line below is one comparison, per ${by === "fy" ? "year" : "period"}. A comparison between two things the model computes from the same schedule is marked as no test.</p>
+    <div class="scroll"><table class="tw"><thead><tr><th class="twl">Comparison</th>${P.map(p => `<th class="num">${esc(p.label)}</th>`).join("")}</tr></thead><tbody>${res.map(r =>
+      `<tr><th scope="row" class="twl lvl0">${esc(r.title)} ${stPill(r.status)}</th>${r.values.map(v => `<td class="num ${tint(r.status)}">${twNum(v, true)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+    <ul class="alts">${res.map(r => `<li><b>${esc(r.title)}:</b> ${esc(r.reading)}</li>`).join("")}</ul></div>`;
+  return `<div class="twhead">${seg}<span class="muted" style="font-size:13px">${info}</span></div>
+    <div class="stack">${["pnl", "cf", "bs"].map(k => twTable(T, k, enc, by)).join("")}${resid}</div>`;
+}
+async function loadTW(by) {
+  const id = cur?.id, box = $("#tw");
+  if (!id || !box) return;
+  cur.tw.by = by;
+  const seq = ++twSeq, mine = () => seq === twSeq && cur && cur.id === id && $("#tw");
+  const draw = T => { if (mine()) { $("#tw").innerHTML = twHTML(T, by); $("#tw").removeAttribute("aria-busy"); settle(); } };
+  if (cur.tw.data[by]) { draw(cur.tw.data[by]); return; }
+  box.setAttribute("aria-busy", "true"); box.style.opacity = ".6";
+  try {
+    const T = await getJSON(`/api/workbook/${encodeURIComponent(id)}/threeway?${new URLSearchParams({ by })}`);
+    if (cur && cur.id === id) cur.tw.data[by] = T;
+    box.style.opacity = "";
+    draw(T);
+  } catch (err) {
+    if (mine()) { $("#tw").style.opacity = ""; $("#tw").removeAttribute("aria-busy"); $("#tw").innerHTML = `<div class="callout">${esc(err?.message || "Could not be read")}</div>`; }
+    throw err;
+  }
+}
+
 /* ---------- Reference: the ontology (modelatlas/ontology.py) ---------- */
 async function ontologyPage() {
   cur = null;
@@ -575,6 +672,8 @@ async function showRow(sheet, row) {
   } catch (err) { body.innerHTML = `<div class="callout">${esc(err.message)}</div>`; }
 }
 document.addEventListener("click", ev => {
+  const seg = ev.target.closest("button[data-by]");
+  if (seg && cur && $("#tw")) { loadTW(seg.dataset.by).catch(() => {}); return; }
   const ref = ev.target.closest("button.ref");
   if (ref && cur) { showRow(ref.dataset.sheet, ref.dataset.row); return; }
   const exp = ev.target.closest("button.exp");
