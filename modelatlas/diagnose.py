@@ -43,6 +43,7 @@ import sys
 import time
 import tokenize
 import traceback
+import types
 import unicodedata
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -1279,6 +1280,72 @@ def sheet_roles(ctx: Ctx) -> list[dict]:
             role = "timeline_less"
         out.append({"sheet": ctx.tok(s), "role": role, "timeline": bool(lay.get("periods"))})
     return out
+
+
+class _Plain:
+    """Stands where Anon does when nothing is to be hidden: the model's own sheet names, patterns and functions."""
+    funcs: dict = {}
+
+    @staticmethod
+    def sheet_token(name):
+        return name
+
+    @staticmethod
+    def pattern(text):
+        return text
+
+    @staticmethod
+    def func(name):
+        return re.sub(r"^(?:_xl[a-z]+\.)+", "", name, flags=re.I).upper()
+
+
+class _LocalCtx(Ctx):
+    """The stages' context for a person looking at their own model on their own machine (the dashboard): real names, no
+    self-scan, no registry. Never used to write a report."""
+
+    def __init__(self, db_path: Path):
+        self.db_path = Path(db_path)
+        self.folder = self.db_path.parent.name
+        self.args = types.SimpleNamespace(depth=6, max_rows=300, quiet=True)
+        self.db = rodb.connect(self.db_path, check_same_thread=False)
+        try:
+            self.sheet_names = [r[0] for r in self.db.execute("SELECT sheet FROM sheets ORDER BY rowid")]
+            self.layouts = {}
+            for s, lay in self.db.execute("SELECT sheet, layout FROM sheets"):
+                try:
+                    self.layouts[s] = json.loads(lay) if lay else {}
+                except ValueError:
+                    self.layouts[s] = {}
+            self.have = {r[0] for r in self.db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        except BaseException:
+            self.close()   # not a model.db, or locked: the file is not left open
+            raise
+        self.anon = _Plain()
+        self.stash, self.full, self.errors = {}, {}, []
+
+    def tok(self, sheet: str) -> str:
+        return sheet
+
+
+def profile_full(db_path, statements: dict | None = None) -> dict:
+    """The complexity profile of one model.db at level full: the stage_complexity result with the model's real sheet
+    names, with the census, the DCF anchors and the per-sheet roles beside it. For the local dashboard only; the
+    shapes reports never go through here. statements: a statements.detect() result, for the sheets that are check rows."""
+    ctx = _LocalCtx(db_path)
+    try:
+        out: dict = {"census": stage_census(ctx)}
+        try:
+            out["anchors"] = stage_anchors(ctx)
+            stage_depgraph(ctx)
+        except Exception as e:  # noqa: BLE001 (no DCF found, or one that cannot be read: the profile still stands)
+            out["anchors_error"] = f"{type(e).__name__}: {e}" if not isinstance(e, Skip) else str(e)
+        ctx.stash["statements"] = statements or {}
+        out["complexity"] = stage_complexity(ctx)
+        out["sheets"] = sheet_roles(ctx)
+        out["top_anchor"] = ctx.stash.get("top_anchor")
+        return out
+    finally:
+        ctx.close()
 
 
 def build_report(ctx: Ctx, build_info: dict | None = None) -> dict:

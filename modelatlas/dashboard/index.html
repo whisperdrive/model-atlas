@@ -12,7 +12,7 @@
 :root {
   --ground: #f4f6f4; --surface: #ffffff; --ink: #1b2320; --muted: #5d6a64; --rule: #d8ded9;
   --accent: #1d6b47; --accent-soft: #e3efe7; --warn-bg: #fbeeea; --warn-ink: #8a2f1b; --code-bg: #eef1ee;
-  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s7: #4a3aa7; --s8: #e34948; --gray: #6b7771;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948; --gray: #6b7771;
   --q1: #cde2fb; --q2: #9ec5f4; --q3: #6da7ec; --q4: #3987e5; --q5: #256abf; --q6: #184f95; --q7: #0d366b;
   --sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
@@ -22,7 +22,7 @@
   :root:not([data-theme="light"]) {
     --ground: #111513; --surface: #181e1b; --ink: #e2e9e5; --muted: #93a39b; --rule: #2b3430;
     --accent: #58bd8a; --accent-soft: #1d3328; --warn-bg: #3a1f18; --warn-ink: #f2a58f; --code-bg: #1f2622;
-    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s7: #9085e9; --s8: #e66767; --gray: #93a39b;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767; --gray: #93a39b;
     --q1: #0d366b; --q2: #104281; --q3: #184f95; --q4: #1c5cab; --q5: #2a78d6; --q6: #5598e7; --q7: #86b6ef;
     color-scheme: dark;
   }
@@ -30,7 +30,7 @@
 :root[data-theme="dark"] {
   --ground: #111513; --surface: #181e1b; --ink: #e2e9e5; --muted: #93a39b; --rule: #2b3430;
   --accent: #58bd8a; --accent-soft: #1d3328; --warn-bg: #3a1f18; --warn-ink: #f2a58f; --code-bg: #1f2622;
-  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s7: #9085e9; --s8: #e66767; --gray: #93a39b;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767; --gray: #93a39b;
   --q1: #0d366b; --q2: #104281; --q3: #184f95; --q4: #1c5cab; --q5: #2a78d6; --q6: #5598e7; --q7: #86b6ef;
   color-scheme: dark;
 }
@@ -100,6 +100,58 @@ details summary { cursor: pointer; font-size: 14px; font-weight: 600; }
 }
 header h1 small { font-size: 11px; font-weight: 400; }
 footer { color: var(--muted); font-size: 12px; padding: 16px 24px 24px; border-top: 1px solid var(--rule); margin-top: 24px; }
+
+/* Workbook page: a sticky nav on the left, the sections on one scrolling page. Status and class colours as in the dependency report. */
+.wbl { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 28px; align-items: start; }
+nav.side { position: sticky; top: 72px; font-size: 14px; }
+nav.side ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.side a { display: block; padding: 6px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; border-left: 3px solid transparent; }
+nav.side a:hover { background: var(--accent-soft); }
+nav.side a[aria-current="true"] { background: var(--accent-soft); border-left-color: var(--accent); font-weight: 500; }
+.secs { display: grid; gap: 40px; min-width: 0; }
+.sec { scroll-margin-top: 72px; min-width: 0; }
+.sec h2.q { font-size: 20px; font-weight: 600; margin: 0 0 2px; }
+.sec > .sub { margin: 0 0 14px; font-size: 14px; color: var(--muted); }
+.sec .tiles { margin-bottom: 12px; }
+.stack { display: grid; gap: 12px; min-width: 0; }
+.card h3 { font-size: 14px; font-weight: 600; margin: 0 0 2px; }
+h3.grp { font-size: 15px; font-weight: 600; margin: 20px 0 10px; }
+.card > details, details.card > summary { cursor: pointer; }
+details.card[open] > summary { margin-bottom: 4px; }
+.note { font-size: 13px; margin: 8px 0 0; }
+#holds { display: grid; gap: 12px; min-width: 0; }
+dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 8px 0 0; font-size: 14px; }
+dl.kv dt { color: var(--muted); } dl.kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.pill.warn { background: color-mix(in srgb, var(--s4) 22%, var(--surface)); color: var(--ink); }
+.pill.st { font-weight: 500; }
+.cpill { display: inline-block; font-size: 11.5px; padding: 1px 8px; border-radius: 99px; background: color-mix(in srgb, var(--c) 22%, var(--surface)); border: 1px solid var(--c); color: var(--ink); white-space: nowrap; }
+.t-ok { color: var(--accent); } .t-bad { color: var(--warn-ink); } .t-mu { color: var(--muted); }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.tile small { display: block; font-size: 12px; }
+.verdict .tile .pills { margin: 6px 0 0; }
+.callout.plain { background: var(--code-bg); color: var(--ink); border: 1px solid var(--rule); }
+button.ref { all: unset; cursor: pointer; font-family: var(--mono); font-size: 12.5px; color: var(--accent); border-radius: 3px; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
+button.ref:hover { background: var(--accent-soft); }
+button.ref:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+button.exp { background: none; border: 0; cursor: pointer; width: 26px; height: 26px; border-radius: 4px; color: var(--muted); }
+button.exp:hover { background: var(--accent-soft); color: var(--ink); }
+table.ids td, table.ids th { vertical-align: middle; }
+tr.detail > td { background: var(--ground); }
+.detail-in { padding: 6px 4px 8px; font-size: 13.5px; }
+table.inner { font-size: 13px; background: var(--surface); border-radius: 6px; }
+ul.alts { margin: 6px 0 0; padding-left: 20px; font-size: 13.5px; } ul.alts li { margin: 2px 0; }
+td.vocab { font-size: 12px; overflow-wrap: anywhere; color: var(--muted); }
+dialog { background: var(--surface); color: var(--ink); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; width: min(560px, calc(100vw - 32px)); }
+dialog::backdrop { background: rgb(0 0 0 / .45); }
+#onto { text-decoration: none; color: var(--ink); }
+[id^="blk-"] { scroll-margin-top: 72px; }
+@media (max-width: 900px) {
+  .wbl { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  nav.side { position: sticky; top: 52px; z-index: 4; background: var(--ground); margin: 0 -16px; padding: 4px 16px; border-bottom: 1px solid var(--rule); overflow-x: auto; }
+  nav.side ol { display: flex; gap: 4px; } nav.side a { white-space: nowrap; border-left: 0; border-bottom: 3px solid transparent; }
+  nav.side a[aria-current="true"] { border-bottom-color: var(--accent); }
+  nav.side p { display: none; } .sec { scroll-margin-top: 110px; }
+}
 </style>
 </head>
 <body>
@@ -107,11 +159,14 @@ footer { color: var(--muted); font-size: 12px; padding: 16px 24px 24px; border-t
   <h1><a href="#/">Model Atlas</a> <small id="ver" class="muted"></small></h1>
   <span class="crumb" id="crumb"></span>
   <span class="sp"></span>
+  <a class="btn" id="onto" href="#/ontology">Ontology</a>
   <button class="btn" id="refresh" title="Reload from the databases">Refresh</button>
 </header>
 <main id="main"><p class="muted">Loading…</p></main>
 <footer id="notice"></footer>
 <div id="tip"></div>
+<dialog id="rowdlg" aria-labelledby="rowdlg-t"><h3 id="rowdlg-t" class="mono" style="margin:0 0 10px"></h3><div id="rowdlg-b"></div>
+  <form method="dialog" style="margin-top:14px;text-align:right"><button class="btn">Close</button></form></dialog>
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -200,48 +255,85 @@ async function portfolio() {
   }
 }
 
-/* ---------- One workbook (its model.db) ---------- */
-async function workbook(id) {
-  const d = await getJSON("/api/workbook/" + encodeURIComponent(id)); last = d;
-  $("#crumb").textContent = "/ " + d.filename;
-  const t = d.totals, e = d.edges;
-  const pct = t.formulas + t.consts ? Math.round(100 * t.formulas / (t.formulas + t.consts)) : 0;
-  const liveEdges = e.kinds.filter(k => k.kind !== "inactive").reduce((a, k) => a + k.n, 0);
-  const tl = s => s.layout.periods ? `${s.layout.periods} ${esc(s.layout.periodicity || "")} · ${esc(s.layout.period_start || "")} → ${esc(s.layout.period_end || "")}` : '<span class="muted">none</span>';
-  const rowRef = r => `<span class="mono">${esc(r.sheet)}!${r.row}</span>`;
-  const topCols = what => [["Row", rowRef], ["Label", r => esc(r.label) || `<span class="muted">${esc(r.units) || "unlabelled"}</span>`], [what, r => fmtN(r.n), 1], ["Sheets", r => fmtN(r.sheets), 1]];
-  $("#main").innerHTML = `
-    <p class="muted" style="margin:0"><span class="pill${d.source === "upload" ? "" : " cli"}">${esc(d.source)}</span>${d.target_name || d.valuation_date ? " " + esc(d.target_name || "") + (d.project_name ? " · " + esc(d.project_name) : "") + (d.valuation_date ? " · valued at " + esc(d.valuation_date) : "") : ""}</p>
-    <div class="tiles">
-      <div class="tile"><b>${fmtN(t.sheets)}</b><span>sheets</span></div>
-      <div class="tile"><b>${fmtN(t.rows)}</b><span>line items</span></div>
-      <div class="tile"><b>${kfmt(t.formulas)}</b><span>formula cells (${pct}%)</span></div>
-      <div class="tile"><b>${kfmt(t.consts)}</b><span>inputs / constants</span></div>
-      <div class="tile"><b>${fmtN(liveEdges)}</b><span>row links in use${t.edges > liveEdges ? ` (+${fmtN(t.edges - liveEdges)} unused)` : ""}</span></div>
-      <div class="tile"><b>${fmtN(t.names)}</b><span>named ranges</span></div>
-    </div>
-    <div class="card"><h2>Cells by sheet</h2><p class="sub">Formula cells and hard-coded inputs in each sheet's line items, in workbook order.</p>
-      <div class="chart" id="sheets-box"><canvas id="c-sheets"></canvas></div></div>
-    <div class="card"><h2>Which sheets feed which</h2><p class="sub">Row links from the sheet on the left (reads) to the sheet across the top (is read). Only links the current scenario uses; links within a sheet are left out.</p>
-      <div class="scroll" id="heat"></div></div>
-    <div class="card"><h2>Value dependency graph</h2><p class="sub">What a DCF value rests on: the discounting, cash flows, calculations and inputs behind it, classed by rule with a stated reason. Opens as its own report page.</p>
-      <div id="dg"><p class="muted" style="margin:0">Finding the DCFs…</p></div></div>
-    <div class="grid2">
-      <div class="card"><h2>Most-read rows</h2><p class="sub">Rows that the most other rows depend on.</p>${tbl(e.most_read, topCols("Read by"))}</div>
-      <div class="card"><h2>Rows reading the most</h2><p class="sub">Rows whose formulas pull from the most other rows.</p>${tbl(e.most_reading, topCols("Reads"))}</div>
-    </div>
-    <div class="card"><h2>Sheets</h2>
-      ${tbl(d.sheets, [["#", s => s.pos, 1], ["Sheet", s => esc(s.sheet)], ["State", s => s.state === "visible" ? "visible" : `<span class="pill">${esc(s.state)}</span>`],
-        ["Timeline", tl], ["Line items", s => fmtN(s.rows), 1], ["Formulas", s => fmtN(s.formulas), 1], ["Inputs", s => fmtN(s.consts), 1],
-        ["Sections", s => fmtN(d.sections.filter(x => x.sheet === s.sheet).length), 1]])}</div>
-    <div class="card"><h2>Line items</h2><p class="sub">Search labels and sections. Shows the first 200 matches.</p>
-      <div class="controls"><input type="search" id="q" placeholder="Search, e.g. revenue">
-        <select id="sheet"><option value="">All sheets</option>${d.sheets.filter(s => s.rows).map(s => `<option>${esc(s.sheet)}</option>`).join("")}</select></div>
-      <div id="rows"><p class="muted">Loading…</p></div></div>
-    <div class="card"><details><summary>Named ranges (${fmtN(d.names.length)})</summary><div style="margin-top:10px">
-      ${tbl(d.names, [["Name", n => `<span class="mono">${esc(n.name)}</span>`], ["Refers to", n => `<span class="mono">${esc(n.ref)}</span>`]])}</div></details></div>`;
+/* ---------- One workbook (its model.db): five sections on one page, deep-linked by the hash ---------- */
+const SECS = [["model", "What is this model?"], ["value", "How is the value built?"], ["holds", "Does it hold together?"], ["look", "What should I look at?"]];
+let cur = null, spy = null, pendingSec = null;   // pendingSec: a deep-linked section to keep in view while the page above it fills in
+for (const ev of ["wheel", "touchstart", "keydown", "pointerdown"]) addEventListener(ev, () => { pendingSec = null; }, { passive: true });
+const settle = () => { if (pendingSec) scrollSec(pendingSec); };   // cur: the workbook on screen, {id, d, sheets, S, P}
+const hashFor = (id, sec) => "#/wb/" + encodeURIComponent(id) + (sec ? "/" + sec : "");
+const ROLE_NAME = { src_only: "input", mid: "engine", sink_only: "output", check_rows: "checks", isolated: "isolated", timeline_less: "no timeline", unknown: "unknown" };
+const ROLE_TIP = { src_only: "Read by other sheets, reads none: inputs", mid: "Reads and is read: the engine", sink_only: "Reads other sheets, nothing reads it: an output",
+  check_rows: "Mostly check rows", isolated: "No links to or from other sheets", timeline_less: "Reads and is read, but has no period timeline: a lookup or list", unknown: "No links table to tell from" };
+const KIND_NAME = { model_fails_identity: "fails", plugged_balance_sheet: "plug", check_and_binding_disagree: "disagree", corkscrew_fails: "roll-forward fails",
+  stale: "stale", pattern_break: "pattern break", binding_unbound: "not found" };
+const KIND_SEV = { model_fails_identity: "bad", plugged_balance_sheet: "bad", check_and_binding_disagree: "bad", corkscrew_fails: "bad", stale: "warn", pattern_break: "warn", binding_unbound: "" };
+const BOUND_TIP = { check: "named by one of the model's own check rows", value_search: "chosen because its values satisfy an identity", value: "chosen because its values satisfy an identity",
+  label: "named by its label", structure: "found from the formulas' structure", link: "a row that is one other row" };
+const BOUND_COL = { check: "--s3", value_search: "--s1", value: "--s1", label: "--s4", structure: "--s7", link: "--s2" };
+const ST = { holds: ["ok", "✓", "holds"], fails: ["bad", "✕", "fails"], unbound: ["", "–", "unbound"] };
+const stPill = s => { const [c, g, t] = ST[s] || ["", "?", s]; return `<span class="pill st ${c}"><span aria-hidden="true">${g}</span> ${esc(t)}</span>`; };
+const boundPill = b => `<span class="cpill" style="--c:var(${BOUND_COL[b] || "--gray"})" title="${esc(BOUND_TIP[b] || "")}">${esc((b || "").replace("_", " "))}</span>`;
+const kindPill = k => `<span class="pill ${KIND_SEV[k] || ""}">${esc(KIND_NAME[k] || k)}</span>`;
+const noteP = t => `<p class="muted note">${t}</p>`;
+const refBtn = (sheet, row, text) => `<button type="button" class="ref mono" data-sheet="${esc(sheet)}" data-row="${esc(row)}" title="Show this row">${esc(text ?? `${sheet}!r${row}`)}</button>`;
 
-  // Horizontal stacked bars: formulas vs inputs per sheet.
+/* Turn "Sheet!r12" / "Sheet!P12" / "'My sheet'!r3" inside a text into buttons that open the row. */
+function linkify(text) {
+  const names = (cur?.sheets || []).slice().sort((a, b) => b.length - a.length).map(n => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  text = String(text ?? "");
+  if (!names.length) return esc(text);
+  const re = new RegExp(`(?:'(?:${names.join("|")})'|(?<![\\w'])(?:${names.join("|")}))!(?:r|\\$?[A-Z]{1,3}\\$?)?(\\d+)`, "g");
+  let out = "", pos = 0, m;
+  while ((m = re.exec(text))) {
+    const whole = m[0], sheet = whole.slice(0, whole.lastIndexOf("!")).replace(/^'|'$/g, "");
+    out += esc(text.slice(pos, m.index)) + refBtn(sheet, m[1], whole);
+    pos = m.index + whole.length;
+  }
+  return out + esc(text.slice(pos));
+}
+
+async function workbook(id, sec, force) {
+  if (!force && cur && cur.id === id && $("#wbl")) { scrollSec(sec); return; }   // same page, another section
+  const d = await getJSON("/api/workbook/" + encodeURIComponent(id)); last = d;
+  cur = { id, d, sheets: d.sheets.map(s => s.sheet) };
+  $("#crumb").textContent = "/ " + d.filename;
+  const t = d.totals, e = d.edges, enc = encodeURIComponent(id);
+  const sec_ = (key, q, sub, body) => `<section class="sec" id="sec-${key}" aria-labelledby="h-${key}"><h2 class="q" id="h-${key}">${q}</h2><p class="muted sub">${sub}</p>${body}</section>`;
+  const topCols = what => [["Row", r => refBtn(r.sheet, r.row)], ["Label", r => esc(r.label) || `<span class="muted">${esc(r.units) || "unlabelled"}</span>`], [what, r => fmtN(r.n), 1], ["Sheets", r => fmtN(r.sheets), 1]];
+  const det = (title, body, open, extra = "") => `<details class="card"${open ? " open" : ""}><summary>${title}</summary>${extra}<div style="margin-top:10px">${body}</div></details>`;
+  $("#main").innerHTML = `
+    <div class="wbl" id="wbl">
+      <nav class="side" aria-label="This workbook">
+        <p class="muted" style="margin:0 0 6px;font-size:12px"><span class="pill${d.source === "upload" ? "" : " cli"}">${esc(d.source)}</span></p>
+        <ol>${SECS.map(([k, q], i) => `<li><a href="${hashFor(id, k)}" data-sec="${k}">${i + 1}. ${q}</a></li>`).join("")}
+        <li><a href="#/ontology">5. Reference: the ontology</a></li></ol>
+      </nav>
+      <div class="secs">
+        ${sec_("model", "What is this model?", `${d.target_name || d.valuation_date ? esc(d.target_name || "") + (d.project_name ? " &middot; " + esc(d.project_name) : "") + (d.valuation_date ? " &middot; valued at " + esc(d.valuation_date) : "") : "Its size, shape and the sheets it is made of."}`, `
+          <div class="tiles" id="tiles"></div>
+          <div id="prof"></div>
+          <div class="stack">
+          <details class="card" open><summary>Sheets</summary><div style="margin-top:10px" id="sheet-tbl"></div></details>
+          <details class="card" open><summary>Which sheets feed which</summary><p class="sub">Row links from the sheet on the left (reads) to the sheet across the top (is read). Only links the current scenario uses; links within a sheet are left out.</p><div class="scroll" id="heat"></div></details>
+          <details class="card" open><summary>Cells by sheet</summary><p class="sub">Formula cells and hard-coded inputs in each sheet's line items, in workbook order.</p><div class="chart" id="sheets-box"><canvas id="c-sheets" role="img" aria-label="Formula cells and inputs by sheet"></canvas></div></details>
+          <details class="card" open><summary>Line items</summary><p class="sub">Search labels and sections. Shows the first 200 matches.</p>
+            <div class="controls"><input type="search" id="q" placeholder="Search, e.g. revenue" aria-label="Search line items">
+            <select id="sheet" aria-label="Sheet"><option value="">All sheets</option>${d.sheets.filter(s => s.rows).map(s => `<option>${esc(s.sheet)}</option>`).join("")}</select></div>
+            <div id="rows"><p class="muted">Loading&hellip;</p></div></details>
+          <div class="grid2">
+            ${det("Most-read rows", `<p class="sub">Rows that the most other rows depend on.</p>` + tbl(e.most_read, topCols("Read by")), false)}
+            ${det("Rows reading the most", `<p class="sub">Rows whose formulas pull from the most other rows.</p>` + tbl(e.most_reading, topCols("Reads")), false)}
+          </div>
+          ${det(`Named ranges (${fmtN(d.names.length)})`, tbl(d.names, [["Name", n => `<span class="mono">${esc(n.name)}</span>`], ["Refers to", n => `<span class="mono">${esc(n.ref)}</span>`]]), false)}
+          </div>`)}
+        ${sec_("value", "How is the value built?", "What a DCF value rests on: the discounting, cash flows, calculations and inputs behind it, classed by rule with a stated reason.", `
+          <div class="card"><h3>Value dependency graph</h3><p class="sub">Opens as its own report page.</p><div id="dg"><p class="muted" style="margin:0">Finding the DCFs&hellip;</p></div></div>`)}
+        ${sec_("holds", "Does it hold together?", "The statements found by the identities that hold in the saved values, and whether those identities hold. Nothing here is a model call.", `<div id="holds"><p class="muted">Reading the statements&hellip;</p></div>`)}
+        ${sec_("look", "What should I look at?", "Places where the model departs from its own pattern, or where a scenario changes what is live.", `<div id="look"><p class="muted">Reading&hellip;</p></div>`)}
+      </div>
+    </div>`;
+  tiles(d, null);
+  sheetTable(d, null, null);
   const sh = d.sheets.filter(s => s.rows);
   $("#sheets-box").style.height = Math.max(160, 60 + sh.length * 26) + "px";
   charts.push(new Chart($("#c-sheets"), { type: "bar",
@@ -249,13 +341,250 @@ async function workbook(id) {
     options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, animation: false, interaction: { mode: "index", axis: "y", intersect: false },
       plugins: { legend: legendOpts(), tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${fmtN(c.raw)}` } } },
       scales: { ...axes(true, true), x: { ...axes(true, true).x, ticks: { ...axes(true, true).x.ticks, callback: v => kfmt(v) } } } } }));
-
   heatmap(e.flows, d.sheets.map(s => s.sheet));
   const load = debounce(() => loadRows(id), 200);
   $("#q").oninput = load; $("#sheet").onchange = load;
   loadRows(id);
   depGraph(id);
+  listenSpy();
+  pendingSec = sec || null;
+  scrollSec(sec);
+
+  // The slow parts arrive on their own: the statements and the profile are read in the thread pool.
+  // Each is drawn when it arrives, so a slow or failed profile does not hold the statements back (or the reverse).
+  const mine = () => cur && cur.id === id && $("#holds");
+  const failed = err => `<div class="callout">${esc(err?.message || "Could not be read")}</div>`;
+  const sReq = getJSON(`/api/workbook/${enc}/statements`).then(S => {
+    if (mine()) { cur.S = S; $("#holds").innerHTML = holdsHTML(S); sheetTable(d, cur.P, S); settle(); }
+    return S;
+  }).catch(err => { if (mine()) $("#holds").innerHTML = failed(err); throw err; });   // a failed read, or a shape the page cannot draw
+  const pReq = getJSON(`/api/workbook/${enc}/profile`).then(P => {
+    if (mine()) { cur.P = P; tiles(d, P); profileCard(P); sheetTable(d, P, cur.S); settle(); }
+    return P;
+  }).catch(err => { if (mine()) { cur.P = undefined; tiles(d, null, true); $("#prof").innerHTML = failed(err); } throw err; });
+  const [S, P] = await Promise.allSettled([sReq, pReq]);
+  if (!mine()) return;
+  await lookSection(id, S.value, P.value);
+  settle(); pendingSec = null;
 }
+
+function scrollSec(sec) {
+  const el = sec && $("#sec-" + sec);
+  if (el) el.scrollIntoView({ block: "start" }); else if (!sec) window.scrollTo(0, 0);
+  navSpy();
+}
+function navSpy() {
+  const secs = SECS.map(([k]) => $("#sec-" + k)).filter(Boolean);
+  let on = secs[0]?.id;
+  for (const s of secs) if (s.getBoundingClientRect().top <= 120) on = s.id;
+  document.querySelectorAll("nav.side a[data-sec]").forEach(a => {
+    if ("sec-" + a.dataset.sec === on) a.setAttribute("aria-current", "true"); else a.removeAttribute("aria-current");
+  });
+}
+function listenSpy() {
+  if (spy) removeEventListener("scroll", spy);
+  let busy = false;
+  spy = () => { if (!busy) { busy = true; requestAnimationFrame(() => { busy = false; navSpy(); }); } };
+  addEventListener("scroll", spy, { passive: true });
+}
+
+function tiles(d, P, gone) {   // gone: the profile could not be read, so its tiles show a dash, not "still reading"
+  const t = d.totals, c = P?.complexity, rg = c?.row_graph, pend = gone ? '<span class="muted">&ndash;</span>' : '<span class="muted">&hellip;</span>';
+  const tile = (b, s) => `<div class="tile"><b>${b}</b><span>${s}</span></div>`;
+  $("#tiles").innerHTML =
+    tile(c ? esc(c.size_class) : pend, "size class") + tile(fmtN(t.sheets), "sheets") + tile(fmtN(t.rows), "line items") +
+    tile(kfmt(t.formulas), "formula cells") +
+    tile(c ? fmtN(c.families_listed) : pend, `formula families${c?.families_left_out ? " (a lower bound)" : ""}`) +
+    tile(c ? (c.timeline.periodicities.length ? esc(c.timeline.periodicities.join(", ")) : "none") : pend, `periodicit${c?.timeline.periodicities.length === 1 ? "y" : "ies"}`) +
+    tile(!c ? pend : rg ? Math.round(100 * rg.cone_share) + "%" : "&ndash;", !c ? "valuation cone share" : rg ? `valuation cone: ${rg.cone_sheets} of ${t.sheets} sheets` : "valuation cone: no DCF found");
+}
+
+function profileCard(P) {
+  const c = P.complexity, g = c.sheet_graph, rg = c.row_graph, a = P.anchors;
+  const rows = [
+    ["Formula cells", `${fmtN(c.formula_cells)} in ${fmtN(c.formula_rows)} rows; longest formula ${fmtN(c.max_formula_length)} characters`],
+    ["Formula families", `${fmtN(c.families_listed)} distinct R1C1 patterns${c.families_left_out ? ` (+${fmtN(c.families_left_out)} patterns left out of the map)` : ""}; ${fmtN(c.rows_multi_pattern)} rows mix several, ${fmtN(c.rows_single_cell_break)} of them with a one-cell run`],
+    ["Links", c.edges_by_kind.length ? c.edges_by_kind.map(k => `${esc(k.kind)} ${fmtN(k.n)}`).join(" &middot; ") : "no links table"],
+    ["Sheet graph", g ? `${g.nodes} sheets, ${g.edges} links between them (density ${g.density}); longest path ${g.longest_path}; ${g.scc_count ? `${g.scc_count} circular group${g.scc_count > 1 ? "s" : ""}, largest ${g.scc_largest} sheets` : "no circular groups"}; ${g.source_sheets} source and ${g.sink_sheets} sink sheets` : "not drawn: no links table"],
+    ["Valuation cone", rg ? `${fmtN(rg.closure_rows)} rows upstream of the top DCF value, ${rg.max_depth} steps deep, on ${rg.cone_sheets} sheets (${esc(rg.cone_sheet_tokens.join(", "))})` : "no DCF value found, so no cone"],
+    ["DCF values", a ? `${a.found} found, ${a.usable} usable, ${a.reproduce} reproduce from their own cash flows` : esc(P.anchors_error || "not computed")],
+    ["Timelines", `${c.timeline.sheets_with_timeline} sheets with a timeline, up to ${c.timeline.longest_periods} periods${c.timeline.first_decades.length ? ", starting in the " + esc(c.timeline.first_decades.join(", ")) : ""}`],
+    ["Top functions", c.functions_top.slice(0, 12).map(f => `<span class="pill">${esc(f.fn)} ${fmtN(f.n)}</span>`).join(" ") || "none"]];
+  $("#prof").innerHTML = `<details class="card" open style="margin-bottom:12px"><summary>Model profile</summary><dl class="kv">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl></details>`;
+}
+
+function sheetTable(d, P, S) {
+  const roles = Object.fromEntries((P?.sheets || []).map(s => [s.sheet, s.role]));
+  const cone = new Set(P?.complexity.row_graph?.cone_sheet_tokens || []);
+  const tl = s => s.layout.periods ? `${esc(s.layout.periods)} ${esc(s.layout.periodicity || "")} &middot; ${esc(s.layout.period_start || "")} &rarr; ${esc(s.layout.period_end || "")}` : '<span class="muted">none</span>';
+  const blocks = {};
+  for (const b of S?.blocks || []) if (b.bound && b.sheet) (blocks[b.sheet] ||= []).push(b.title);
+  $("#sheet-tbl").innerHTML = tbl(d.sheets, [["#", s => s.pos, 1], ["Sheet", s => esc(s.sheet)],
+    ...(P ? [["Role", s => { const r = roles[s.sheet] || "unknown"; return `<span class="pill" title="${esc(ROLE_TIP[r] || "")}">${esc(ROLE_NAME[r] || r)}</span>${cone.has(s.sheet) ? ' <span class="pill ok" title="Upstream of the top DCF value">in valuation cone</span>' : ""}`; }]] : []),
+    ...(S ? [["Statements", s => (blocks[s.sheet] || []).map(esc).join(", ") || '<span class="muted">&ndash;</span>']] : []),
+    ["State", s => s.state === "visible" ? "visible" : `<span class="pill">${esc(s.state)}</span>`],
+    ["Timeline", tl], ["Line items", s => fmtN(s.rows), 1], ["Formulas", s => fmtN(s.formulas), 1], ["Inputs", s => fmtN(s.consts), 1],
+    ["Sections", s => fmtN(d.sections.filter(x => x.sheet === s.sheet).length), 1]])
+    + (P ? noteP("Role comes from which way the sheet's live links run: input (read by others, reads none), engine (both), output (reads, nothing reads it), checks (mostly check rows), isolated (no links), no timeline (a lookup or list).") : "");
+}
+
+/* ---------- Section 3: the statements ---------- */
+const hfu = (a, k) => a.filter(i => i.status === k).length;
+function holdsHTML(S) {
+  const ids = S.identities, tests = ids.filter(i => i.kind === "test"), strc = ids.filter(i => i.kind === "structural");
+  const kinds = {}; for (const f of S.findings) kinds[f.kind] = (kinds[f.kind] || 0) + 1;
+  const chk = S.checks, ch = chk.filter(c => c.verdict === "holds").length, cf = chk.filter(c => c.verdict === "fails").length;
+  const trio = a => `<b><span class="t-ok">${hfu(a, "holds")}</span> / <span class="t-bad">${hfu(a, "fails")}</span> / <span class="t-mu">${hfu(a, "unbound")}</span></b>`;
+  const bs = S.blocks.find(b => b.type === "balance_sheet"), anyBound = S.blocks.some(b => b.bound);
+  const empty = !anyBound ? `<div class="callout plain"><b>No statements found.</b> Nothing in this model looks like a P&amp;L, balance sheet, cash flow or schedule that the identities can be tested on. ${esc(bs?.unbound && Object.values(bs.unbound)[0] || "")}</div>`
+    : bs && !bs.bound ? `<div class="callout plain"><b>No balance sheet found:</b> ${esc(Object.values(bs.unbound)[0] || "no sheet has three totals that balance")}. The identities that depend on it are unbound below, so what is shown is what could be found without one.</div>` : "";
+  const strip = `<div class="tiles verdict">
+      <div class="tile"><b>${S.findings.length}</b><span>findings</span><div class="pills">${Object.entries(kinds).map(([k, n]) => `${kindPill(k)}<span class="muted">${n}</span>`).join(" ") || '<span class="muted">none</span>'}</div></div>
+      <div class="tile">${trio(tests)}<span>tests of the model</span><small class="muted">holds / fails / unbound</small></div>
+      <div class="tile">${trio(strc)}<span>structure confirmed</span><small class="muted">holds / fails / unbound</small></div>
+      <div class="tile"><b><span class="t-ok">${ch}</span> / <span class="t-bad">${cf}</span></b><span>the model's own checks</span><small class="muted">${chk.length ? "holds / fails" : "none found"}${chk.length > ch + cf ? `, ${chk.length - ch - cf} other` : ""}</small></div>
+    </div>`;
+  const fcard = `<div class="card"><h3>Findings</h3><p class="sub">Where the model fails an identity, a plug, a roll-forward that does not roll, a typed number among formulas, saved results that are stale. Most serious first.</p>
+    ${S.findings.length ? `<div class="scroll"><table><thead><tr><th>Kind</th><th>What</th></tr></thead><tbody>${S.findings.map(f => `<tr><td>${kindPill(f.kind)}</td><td>${linkify(f.text)}</td></tr>`).join("")}</tbody></table></div>`
+      : `<p style="margin:0"><span class="pill ok">&#10003; none</span> <span class="muted">No identity fails and nothing is stale, plugged or typed over in what was found.</span></p>`}</div>`;
+  const bound = S.blocks.filter(b => b.bound), unb = S.blocks.filter(b => !b.bound);
+  const roleRow = (name, v) => Array.isArray(v) ? v.map(x => `<tr><td class="mono">${esc(name)}</td><td>${refBtn(x.sheet, x.row)} ${esc(x.label)}</td><td></td><td class="muted">${x.sign < 0 ? "minus" : ""}</td></tr>`).join("")
+    : `<tr><td class="mono">${esc(name)}</td><td>${refBtn(v.sheet, v.row)} ${esc(v.label)}</td><td>${boundPill(v.bound_by)}</td><td class="muted">${linkify(v.how)}</td></tr>`;
+  const alt = a => a.assets ? `balance sheet on ${esc(a.sheet)} (assets ${refBtn(a.assets.sheet, a.assets.row)}, ${esc(a.status)}${a.corroborated_by ? ", corroborated by a " + esc(a.corroborated_by) : ""})`
+    : `${esc(a.kind || "")} corkscrew ${refBtn(a.closing.sheet, a.closing.row)} ${esc(a.closing.label)} (roll ${esc(a.status)}${a.tie ? ", tied to " + esc(a.tie.label) : ""})`;
+  const blockCard = b => {
+    const reasons = {}; for (const [r, why] of Object.entries(b.unbound)) (reasons[why] ||= []).push(r);
+    return `<div class="card"><h3>${esc(b.title)} ${b.sheet ? `<span class="pill">${esc(b.sheet)}</span>` : ""} <span class="pill ${b.complete ? "ok" : ""}">${b.complete ? "complete" : "partly found"}</span></h3>
+      <div class="scroll"><table><thead><tr><th>Role</th><th>Row</th><th>Bound by</th><th>How</th></tr></thead><tbody>${Object.entries(b.rows).map(([r, v]) => roleRow(r, v)).join("")}</tbody></table></div>
+      ${Object.keys(reasons).length ? `<p class="muted note"><b>Not found:</b> ${Object.entries(reasons).map(([w, rs]) => `${rs.map(r => `<span class="mono">${esc(r)}</span>`).join(", ")} (${linkify(w)})`).join("; ")}</p>` : ""}
+      ${b.alternates.length ? `<p class="muted note"><b>Also found, not bound:</b></p><ul class="alts">${b.alternates.map(a => `<li>${alt(a)}</li>`).join("")}</ul>` : ""}</div>`;
+  };
+  const blocks = `<h3 class="grp">Blocks found</h3>${bound.length ? `<div class="stack">${bound.map(blockCard).join("")}</div>` : '<p class="muted">None.</p>'}
+    ${unb.length ? `<details class="card"><summary>Not found (${unb.length})</summary><div class="scroll" style="margin-top:10px"><table><thead><tr><th>Block</th><th>Why not</th></tr></thead><tbody>${unb.map(b => {
+      const why = [...new Set(Object.values(b.unbound))];
+      return `<tr><td>${esc(b.title)}</td><td class="muted">${why.map(linkify).join("<br>")}</td></tr>`;
+    }).join("")}</tbody></table></div></details>` : ""}`;
+  const title = Object.fromEntries(S.blocks.map(b => [b.type, b.title]));
+  let n = 0;
+  const idRows = a => a.map(i => {
+    const k = "idr-" + (n++), fp = i.failing_periods || [];
+    const roles = Object.entries(i.roles || {});
+    const res = i.max_residual == null ? '<span class="muted">&ndash;</span>' : i.max_residual === 0 ? "0" : i.max_residual.toPrecision(3);
+    return `<tr class="idrow"><td><button type="button" class="exp" aria-expanded="false" aria-controls="${k}" aria-label="Details of ${esc(i.title)}">&#9656;</button></td>
+      <td>${stPill(i.status)}</td><td>${esc(i.title)}</td><td class="muted">${esc(title[i.block] || i.block)}</td><td class="muted">${esc(i.scope.replace("_", " "))}</td>
+      <td class="num">${i.periods_checked ? fmtN(i.periods_checked) : "&ndash;"}</td><td class="num">${res}</td>
+      <td>${i.given_by ? `${linkify(i.given_by)} ${stPill(i.model_says)}` : '<span class="muted">&ndash;</span>'}</td></tr>
+      <tr class="detail" id="${k}" hidden><td></td><td colspan="7"><div class="detail-in">
+        <p style="margin:0 0 6px"><span class="mono">${esc(i.expr)} = 0</span></p>
+        <p style="margin:0 0 6px">${esc(i.why)}</p>
+        <p style="margin:0 0 6px" class="muted"><b>${esc(i.kind === "test" ? "A test of the model" : "Structure confirmed")}:</b> ${esc(i.kind_basis || "")}</p>
+        ${fp.length ? `<p style="margin:0 0 6px"><b>Failing periods (${fp.length} of ${i.periods_checked}):</b> <span class="mono">${fp.slice(0, 12).map(x => esc(String(x).slice(0, 10))).join(", ")}${fp.length > 12 ? ` &hellip; +${fp.length - 12} more` : ""}</span></p>` : ""}
+        ${roles.length ? `<table class="inner"><thead><tr><th>Role</th><th>Row</th><th>Bound by</th><th>How</th></tr></thead><tbody>${roles.map(([r, v]) => roleRow(r, v)).join("")}</tbody></table>` : '<p class="muted" style="margin:0">No roles bound.</p>'}
+      </div></td></tr>`;
+  }).join("");
+  const idTable = (head, sub, a) => `<div class="card"><h3>${head}</h3><p class="sub">${sub}</p>${a.length ? `<div class="scroll"><table class="ids"><thead><tr><th><span class="vh">Details</span></th><th>Status</th><th>Identity</th><th>Block</th><th>Scope</th><th class="num">Periods checked</th><th class="num">Max residual</th><th>Model's own check</th></tr></thead><tbody>${idRows(a)}</tbody></table></div>` : '<p class="muted" style="margin:0">None.</p>'}</div>`;
+  const idents = `<h3 class="grp">Identities</h3>
+    ${idTable("Tests of the model", "These can genuinely fail: their rows were named by one of the model's own checks or by labels, so nothing about how they were chosen made them true.", tests)}
+    ${idTable("Structure confirmed", "These hold by construction: one row's own formula is the identity, or a row was chosen because its values equal its counterpart's. They show what was found, not that the model is right.", strc)}`;
+  const checks = `<div class="card"><h3>The model's own checks</h3><p class="sub">Rows the model itself uses to test its numbers. A leaf compares rows; a link reads other checks; an aggregate rolls several up.</p>
+    ${chk.length ? `<div class="scroll"><table><thead><tr><th>Check</th><th>Label</th><th>Verdict</th><th>Shape</th><th>Compares</th><th>Maps to identity</th></tr></thead><tbody>${chk.map(c => `<tr><td>${refBtn(c.sheet, c.row)}</td><td>${esc(c.label)}</td><td>${c.verdict ? stPill(c.verdict) : '<span class="muted">?</span>'}</td>
+      <td><span class="pill">${esc(c.kind)}</span></td><td>${[...(c.rows || []).map(r => refBtn(r.sheet, r.row, `${r.sheet}!r${r.row} ${r.label}`)), ...(c.reads_checks || []).map(linkify)].join("<br>") || '<span class="muted">&ndash;</span>'}</td>
+      <td>${c.identity ? `<span class="mono">${esc(c.identity)}</span>` : '<span class="muted">&ndash;</span>'}</td></tr>`).join("")}</tbody></table></div>`
+      : '<p class="muted" style="margin:0">No check rows found. A check row compares two totals and reports OK or a difference of zero; without one, the identities above are tested on the saved values alone and none can be named by the model\'s own verdict.</p>'}</div>`;
+  const lineage = `<div class="card"><h3>Lineage</h3><p class="sub">Does the P&amp;L reach the rows it should, by the live links?</p>
+    ${S.lineage.length ? `<div class="scroll"><table><thead><tr><th>Status</th><th>Test</th><th>Why</th></tr></thead><tbody>${S.lineage.map(l => `<tr><td>${stPill(l.status)}</td><td>${esc(l.text)}</td><td class="muted">${linkify(l.why)}</td></tr>`).join("")}</tbody></table></div>` : '<p class="muted" style="margin:0">No lineage tests apply.</p>'}</div>`;
+  const st = S.stats;
+  return empty + strip + fcard + blocks + idents + checks + lineage +
+    noteP(`Found in ${st.secs} s: ${fmtN(st.rows)} rows, ${fmtN(st.rows_parsed)} formulas parsed, ${st.subtotals} subtotals, ${st.corkscrews} roll-forwards, ${st.checks} check rows. Tolerance ${S.tolerance.relative} relative of the largest value (floor ${S.tolerance.absolute}).${st.capped?.length ? " Capped: " + esc(st.capped.join("; ")) : ""}`);
+}
+
+/* ---------- Section 4: what should I look at ---------- */
+async function lookSection(id, S, P) {
+  const box = $("#look"); if (!box || !cur || cur.id !== id) return;
+  const fs = k => (S?.findings || []).filter(f => f.kind === k);
+  const list = (a, none) => a.length ? `<ul class="alts">${a.map(f => `<li>${linkify(f.text)}</li>`).join("")}</ul>` : `<p class="muted" style="margin:0"><span class="pill ok">&#10003; none</span> ${none}</p>`;
+  const st = S?.stats, c = P?.complexity;
+  const card = (h, sub, body) => `<div class="card"><h3>${h}</h3><p class="sub">${sub}</p>${body}</div>`;
+  const part1 = card("Pattern breaks", "Where a statement row departs from its own pattern: a typed number among formulas, or a row that is missing from the total it should feed.",
+    list(fs("pattern_break"), "No typed number sits among the formulas of the statement rows.") +
+    (c ? noteP(`Across the whole model, ${fmtN(c.rows_single_cell_break)} of ${fmtN(c.formula_rows)} formula rows have a run of one cell between runs of others. That is a prompt to look, not a finding: a seeded first period looks the same.`) : ""))
+    + card("Stale cells", "Cells whose saved value is not what their formula gives from the values they read: inputs changed after Excel last calculated.",
+      list(fs("stale"), st ? `${fmtN(st.stale_cells_checked)} simple arithmetic cells upstream of the statement rows were recomputed${st.stale_rows_circular_skipped ? `; ${st.stale_rows_circular_skipped} rows in circular references were skipped` : ""}.` : "Not computed: the statements could not be read."));
+  box.innerHTML = `<div class="stack">${part1}<div id="look-g">${card("Scenario-selected inputs and inactive candidates", "From the value dependency graph of the top DCF value.", '<p class="muted" style="margin:0">Reading the graph&hellip;</p>')}</div>
+    ${card("Orphans", "Rows that nothing reads and that read nothing that reaches a value.", '<p class="muted" style="margin:0"><span class="pill">not computed yet</span> The dependency graph lists only what sits upstream of a value, so a row outside it is not told apart from one that is simply an output. Use the sheet roles in section 1 and the row-link counts in the line-item search to find rows read by none.</p>')}</div>`;
+  const g = $("#look-g");
+  try {
+    const top = (await getJSON(`/api/workbook/${encodeURIComponent(id)}/depgraph/anchors`)).anchors.find(a => a.ok);
+    if (!top) throw new Error("No DCF value was found in this workbook");
+    const gr = await getJSON(`/api/workbook/${encodeURIComponent(id)}/depgraph?${new URLSearchParams({ cell: top.cell })}`);
+    if (!cur || cur.id !== id || !$("#look-g")) return;
+    const ns = gr.nodes.filter(n => n.kind !== "group");
+    const sel = ns.filter(n => n.subclass === "scenario-selected"), ina = ns.filter(n => n.inactive_hidden > 0);
+    const val = n => typeof n.value === "number" ? n.value.toLocaleString(undefined, { maximumFractionDigits: 4 }) : esc(n.value ?? "");
+    const tb = (a, extra) => a.length ? `<div class="scroll"><table><thead><tr><th>Row</th><th>Label</th><th class="num">Value</th><th>${extra[0]}</th></tr></thead><tbody>${a.map(n => `<tr><td>${n.sheet && n.row != null ? refBtn(n.sheet, n.row, n.cell || `${n.sheet}!r${n.row}`) : esc(n.id)}</td><td>${esc(n.label)}</td><td class="num">${val(n)}</td><td class="muted">${extra[1](n)}</td></tr>`).join("")}</tbody></table></div>` : null;
+    g.innerHTML = card("Scenario-selected inputs", `Typed values picked by a scenario selector (anchor ${esc(gr.start.label || gr.start.id)}, ${esc(gr.start.id)}).`,
+      tb(sel, ["Why", n => linkify(n.why)]) || '<p class="muted" style="margin:0"><span class="pill ok">&#10003; none</span> Nothing upstream of this value is picked by a scenario selector.</p>')
+      + `<div style="height:16px"></div>` + card("Inactive candidates", "Rows with candidates the active scenario does not select: change the scenario and these start to count.",
+      tb(ina, ["Not selected", n => `+${n.inactive_hidden} candidate${n.inactive_hidden > 1 ? "s" : ""}`]) || '<p class="muted" style="margin:0"><span class="pill ok">&#10003; none</span> No upstream row has unselected candidates.</p>');
+  } catch (err) {
+    if ($("#look-g")) g.innerHTML = card("Scenario-selected inputs and inactive candidates", "From the value dependency graph of the top DCF value.",
+      `<p class="muted" style="margin:0"><span class="pill">not computed</span> ${esc(err.message)}. Scenario selection is read from the graph of a DCF value, so a model with none has nothing to show here.</p>`);
+  }
+}
+
+/* ---------- Reference: the ontology (modelatlas/ontology.py) ---------- */
+async function ontologyPage() {
+  cur = null;
+  $("#crumb").textContent = "/ ontology";
+  const o = await getJSON("/api/ontology");
+  const nI = o.blocks.reduce((a, b) => a + b.identities.length, 0), nR = o.blocks.reduce((a, b) => a + b.roles.length, 0);
+  const kind = k => `<span class="pill ${k === "test" ? "ok" : ""}">${k === "test" ? "test" : "structural"}</span>`;
+  $("#main").innerHTML = `
+    <div class="wbl"><nav class="side" aria-label="Blocks"><ol>${o.blocks.map(b => `<li><a href="#/ontology/${b.type}" data-blk="${b.type}">${esc(b.title)}</a></li>`).join("")}</ol></nav>
+    <div class="secs"><section class="sec"><h2 class="q">Reference: the ontology</h2>
+      <p class="sub" style="max-width:70ch">An identity is <span class="mono">expression = 0</span> over named roles; the statement detector finds the rows that play the roles by which identities hold in the saved values. ${nI} identities over ${nR} roles in ${o.blocks.length} blocks.</p>
+      <div class="card"><h3>Test or structural</h3>
+        <p style="margin:0 0 8px">${kind("test")} ${esc(o.kinds.test)}</p>
+        <p style="margin:0 0 8px">${kind("structural")} ${esc(o.kinds.structural)}</p>
+        <p class="muted note" style="margin-bottom:0">The kind shown here is the default. For every result the detector decides it again from how each role was bound: by a model check, by value, by label, by structure or by link.</p></div>
+      <details class="card"><summary>How an identity is tested (scope)</summary><dl class="kv" style="margin-top:10px">${Object.entries(o.scopes).map(([k, v]) => `<dt class="mono">${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
+        <p class="muted note">Flex lists the roles whose sign is tested both ways (costs stored as negatives or as positives). A role ending in * stands for a list of rows, such as the movements of a roll-forward.</p></details>
+      <div class="stack">${o.blocks.map(b => `<div class="card" id="blk-${esc(b.type)}"><h3>${esc(b.title)} <span class="muted mono" style="font-weight:400">${esc(b.type)}</span></h3>
+        <div class="scroll"><table><thead><tr><th>Identity</th><th>Says</th><th>Expression = 0</th><th>Scope</th><th>Flex</th><th>Default kind</th></tr></thead><tbody>
+          ${b.identities.map(i => `<tr><td class="mono">${esc(i.key)}</td><td>${esc(i.title)}</td><td class="mono">${esc(i.expr)}</td><td class="muted">${esc(i.scope.replace("_", " "))}</td><td class="mono">${i.flex.length ? esc(i.flex.join(", ")) : '<span class="muted">&ndash;</span>'}</td><td>${kind(i.kind)}</td></tr>`).join("") || '<tr><td colspan="6" class="muted">No identities.</td></tr>'}</tbody></table></div>
+        <div class="scroll" style="margin-top:12px"><table><thead><tr><th>Role</th><th>Is</th><th>Label vocabulary (tie-breaker, last-resort name)</th></tr></thead><tbody>
+          ${b.roles.map(r => `<tr><td class="mono">${esc(r.name)}</td><td>${esc(r.what)}</td><td class="mono vocab">${esc(r.vocab)}</td></tr>`).join("")}</tbody></table></div></div>`).join("")}</div>
+    </section></div></div>`;
+  const m = location.hash.match(/^#\/ontology\/(\w+)/);
+  if (m && $("#blk-" + m[1])) $("#blk-" + m[1]).scrollIntoView();
+}
+
+/* Row inspector: any "Sheet!r12" reference on the page opens this. */
+async function showRow(sheet, row) {
+  const dlg = $("#rowdlg"), body = $("#rowdlg-b");
+  $("#rowdlg-t").textContent = `${sheet}!r${row}`;
+  body.innerHTML = '<p class="muted">Reading&hellip;</p>';
+  if (!dlg.open) dlg.showModal();
+  try {
+    const { rows } = await getJSON(`/api/workbook/${encodeURIComponent(cur.id)}/rows?${new URLSearchParams({ sheet, row })}`);
+    const r = rows[0];
+    body.innerHTML = r ? `<dl class="kv"><dt>Label</dt><dd>${esc(r.label) || '<span class="muted">none</span>'}</dd><dt>Section</dt><dd>${esc(r.section) || "&ndash;"}</dd><dt>Units</dt><dd>${esc(r.units) || "&ndash;"}</dd>
+      <dt>Cells</dt><dd>${fmtN(r.n_formula)} formulas, ${fmtN(r.n_const)} inputs</dd><dt>Reads / read by</dt><dd>${fmtN(r.reads)} / ${fmtN(r.read_by)} rows</dd>
+      <dt>Sample</dt><dd class="mono" style="overflow-wrap:anywhere">${esc((r.samples || "").slice(0, 300))}</dd></dl>`
+      : '<p class="muted">This row is not among the workbook\'s line items.</p>';
+  } catch (err) { body.innerHTML = `<div class="callout">${esc(err.message)}</div>`; }
+}
+document.addEventListener("click", ev => {
+  const ref = ev.target.closest("button.ref");
+  if (ref && cur) { showRow(ref.dataset.sheet, ref.dataset.row); return; }
+  const exp = ev.target.closest("button.exp");
+  if (exp) {
+    const row = document.getElementById(exp.getAttribute("aria-controls")), open = exp.getAttribute("aria-expanded") === "true";
+    exp.setAttribute("aria-expanded", String(!open)); row.hidden = open;
+    exp.innerHTML = open ? "&#9656;" : "&#9662;";
+  }
+  if (ev.target.id === "rowdlg") ev.target.close();   // a click on the backdrop
+});
 
 /* Value dependency graph card: anchors from the catalogue (slow the first time), a summary from the JSON, the report in a new tab. */
 const CLS = { outcome: "--s1", bridge: "--s2", cashflow: "--s3", timeline: "--s4", assumption: "--s5", discounting: "--s7", terminal: "--s8", calculation: "--gray" };
@@ -266,6 +595,7 @@ async function depGraph(id) {
   try { anchors = (await getJSON(`/api/workbook/${encodeURIComponent(id)}/depgraph/anchors`)).anchors; }
   catch (err) { box.innerHTML = `<div class="callout">${esc(err.message)}</div>`; return; }
   if (!$("#dg")) return;  // moved to another page meanwhile
+  requestAnimationFrame(settle);
   const val = v => typeof v === "number" ? v.toLocaleString(undefined, { maximumFractionDigits: 2 }) : esc(v ?? "");
   const usable = anchors.filter(a => a.ok);
   box.innerHTML = `<div class="controls">
@@ -317,7 +647,7 @@ function heatmap(flows, order) {
       const v = n[a + "\u0000" + b];
       if (!v) return '<td class="z"></td>';
       const k = step(v);
-      return `<td style="background:var(--q${k});color:${light.includes(k) ? "#fff" : "#0b0b0b"}" data-tip="<b>${esc(a)}</b> reads <b>${esc(b)}</b><br>${fmtN(v)} row link${v > 1 ? "s" : ""}">${v >= 1000 ? kfmt(v) : v}</td>`;
+      return `<td style="background:var(--q${k});color:${light.includes(k) ? "#fff" : "#0b0b0b"}" data-tip="${esc(`<b>${esc(a)}</b> reads <b>${esc(b)}</b><br>${fmtN(v)} row link${v > 1 ? "s" : ""}`)}">${v >= 1000 ? kfmt(v) : v}</td>`;
     }).join("")}</tr>`).join("")}</tbody></table>
     <div class="legend">Fewer ${[1, 2, 3, 4, 5, 6, 7].map(k => `<i style="background:var(--q${k})" title="from ${fmtN(edges[k - 1])}"></i>`).join("")} more links (log scale, up to ${fmtN(max)})</div>`;
   const tip = $("#tip");
@@ -338,6 +668,7 @@ async function loadRows(id) {
   try {
     const { rows } = await getJSON(`/api/workbook/${encodeURIComponent(id)}/rows?${p}`);
     if (seq !== rowsSeq) return;  // a newer search has already been sent
+    requestAnimationFrame(settle);
     $("#rows").innerHTML = (rows.length === 200 ? '<p class="muted" style="margin:0 0 8px;font-size:13px">Showing the first 200. Narrow the search to see the rest.</p>' : "") + tbl(rows, [["Row", r => `<span class="mono">${esc(r.sheet)}!${r.row}</span>`], ["Section", r => esc(r.section)],
       ["Label", r => esc(r.label)], ["Units", r => esc(r.units)], ["Formulas", r => fmtN(r.n_formula), 1], ["Inputs", r => fmtN(r.n_const), 1],
       ["Reads", r => fmtN(r.reads), 1], ["Read by", r => fmtN(r.read_by), 1],
@@ -347,18 +678,21 @@ async function loadRows(id) {
 
 function debounce(fn, ms) { let t; return () => { clearTimeout(t); t = setTimeout(fn, ms); }; }
 
-async function route() {
-  drop();
-  const m = location.hash.match(/^#\/wb\/([^/?]+)/);
-  try { m ? await workbook(decodeURIComponent(m[1])) : await portfolio(); }
+async function route(force) {
+  const m = location.hash.match(/^#\/wb\/([^/?]+)(?:\/(\w+))?/);
+  if (m) try { m[1] = decodeURIComponent(m[1]); } catch { m[1] = ""; }   // a malformed %-escape in a typed hash
+  const onto = /^#\/ontology/.test(location.hash);
+  if (m && force !== true && cur && cur.id === m[1] && $("#wbl")) { pendingSec = null; scrollSec(m[2]); return; }   // another section of the page on screen
+  drop(); cur = null; scrollTo(0, 0);
+  try { m ? await workbook(m[1], m[2], true) : onto ? await ontologyPage() : await portfolio(); }
   catch (err) { $("#main").innerHTML = `<div class="callout">${esc(err.message)}</div><p><a href="#/">Back to all workbooks</a></p>`; }
 }
-addEventListener("hashchange", route);
-$("#refresh").onclick = route;
+addEventListener("hashchange", () => route());
+$("#refresh").onclick = () => route(true);
 fetch("/api/version").then(r => r.json()).then(v => {
   $("#ver").textContent = v.version; $("#notice").textContent = v.notice;
 }).catch(() => {});
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", route);  // re-read colour tokens
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => route(true));  // re-read colour tokens
 route();
 </script>
 </body>

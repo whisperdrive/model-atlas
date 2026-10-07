@@ -11,14 +11,16 @@ import os
 import re
 import sys
 import sqlite3
+import threading
+from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
-from .. import NOTICE, __version__, depgraph, depgraph_html, version_line
+from .. import NOTICE, __version__, depgraph, depgraph_html, diagnose, ontology, rodb, statements, version_line
 
 ROOT = Path(__file__).resolve().parents[2]  # the project root
 OUT = Path(os.environ.get("ATLAS_OUT", "out")).resolve()  # ./out under the current directory, or ATLAS_OUT
@@ -28,8 +30,14 @@ LIVE = ("direct", "offset", "active")  # edge kinds the current scenario actuall
 app = FastAPI()
 
 
+@app.exception_handler(sqlite3.Error)
+def _db_error(_request, exc: sqlite3.Error):
+    """A model.db that is locked, being rebuilt or not a database: a short answer, never a traceback."""
+    return JSONResponse({"detail": f"The model database could not be read ({type(exc).__name__}: {exc})"}, status_code=503)
+
+
 def _ro(path: Path | str) -> sqlite3.Connection:
-    db = sqlite3.connect(f"file:{Path(path).as_posix()}?mode=ro", uri=True, check_same_thread=False)
+    db = rodb.connect(path, timeout=5, check_same_thread=False)   # a quoted URI: a folder name may hold '#' or '%'
     db.row_factory = sqlite3.Row
     return db
 
@@ -186,11 +194,14 @@ def workbook(fid: str):
 
 
 @app.get("/api/workbook/{fid}/rows")
-def rows(fid: str, sheet: str | None = None, q: str | None = None, limit: int = 200):
+def rows(fid: str, sheet: str | None = None, q: str | None = None, limit: int = 200,
+         row: int | None = Query(None, ge=1, le=1_048_576)):   # Excel's last row; a bigger int would overflow SQLite
     _, path = _model_db(fid)
     where, args = [], []
     if sheet:
         where.append("r.sheet = ?"); args.append(sheet)
+    if row is not None:
+        where.append("r.row = ?"); args.append(row)
     if q:
         like = "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
         where.append("(r.label LIKE ? ESCAPE '\\' OR r.section LIKE ? ESCAPE '\\')"); args += [like] * 2
@@ -206,6 +217,64 @@ def rows(fid: str, sheet: str | None = None, q: str | None = None, limit: int = 
                               AND e.kind IN ({live})) AS read_by
                          FROM m""", *args, min(max(limit, 1), 1000))
     return {"rows": out}
+
+
+# ---- statements, profile, ontology: rule-based, no model calls; results kept in memory per (file, mtime) ----------
+
+_CACHE: "OrderedDict[tuple, dict]" = OrderedDict()   # (kind, path, mtime_ns) -> result, least recently used first
+_CACHE_MAX = 16          # results kept; a detect on a large model is a few MB, so this stays bounded in a long run
+_CACHE_LOCK = threading.Lock()
+_KEY_LOCKS: dict[tuple, threading.Lock] = {}  # one per key being computed, so the page's two requests share one detect
+
+
+def _cached(kind: str, path: Path, make):
+    try:
+        key = (kind, str(path), path.stat().st_mtime_ns)
+    except OSError:
+        raise HTTPException(404, "No such workbook")
+    with _CACHE_LOCK:
+        if key in _CACHE:
+            _CACHE.move_to_end(key)
+            return _CACHE[key]
+        lock = _KEY_LOCKS.setdefault(key, threading.Lock())
+    with lock:
+        try:
+            with _CACHE_LOCK:
+                if key in _CACHE:
+                    return _CACHE[key]
+            val = make()
+            with _CACHE_LOCK:
+                for old in [k for k in _CACHE if k[:2] == key[:2]]:   # an older build of the same file
+                    del _CACHE[old]
+                _CACHE[key] = val
+                while len(_CACHE) > _CACHE_MAX:
+                    _CACHE.popitem(last=False)
+            return val
+        finally:
+            with _CACHE_LOCK:
+                _KEY_LOCKS.pop(key, None)
+
+
+def _detect(path: Path) -> dict:
+    return _cached("statements", path, lambda: statements.detect(str(path)))
+
+
+@app.get("/api/workbook/{fid}/statements")
+async def workbook_statements(fid: str):
+    _, path = _model_db(fid)
+    return await run_in_threadpool(_detect, path)
+
+
+@app.get("/api/workbook/{fid}/profile")
+async def workbook_profile(fid: str):
+    """The complexity profile at level full (real sheet names: this dashboard is local)."""
+    _, path = _model_db(fid)
+    return await run_in_threadpool(_cached, "profile", path, lambda: diagnose.profile_full(str(path), _detect(path)))
+
+
+@app.get("/api/ontology")
+def ontology_json():
+    return ontology.as_json()
 
 
 # ---- value dependency graph (modelatlas/depgraph.py): read-only, rule-based, no model calls -----------------------

@@ -84,9 +84,11 @@ uv run uvicorn modelatlas.dashboard.server:app --port 8001          # the same, 
 ```
 It reads the `out/` folder of the directory it is started in, or the folder named by `ATLAS_OUT`. Every
 `out/<name>/model.db` is listed as a command-line build; an `out/registry.db`, if one happens to be there, is read as
-well, but nothing needs it. Select a workbook to see formula cells and inputs by sheet, which sheets feed which, the
-most-read rows, a searchable list of line items and the named ranges. The **Value dependency graph** card draws the
-graph from a DCF value cell and "Open report" gives the standalone page. Every database is opened read-only.
+well, but nothing needs it. A workbook opens as one page of four questions, each deep-linkable (`#/wb/<id>/holds`):
+**What is this model?** (size, sheets and their roles, profile, line-item search); **How is the value built?** (the
+dependency graph); **Does it hold together?** (findings, statement blocks and how each row was bound, identities as tests
+versus structure confirmed, the model's own checks); **What should I look at?** (pattern breaks, stale cells, scenario
+inputs). `#/ontology` lists the blocks, roles and identities the detector works from. Every database is opened read-only.
 
 ## Diagnostic runs (modelatlas/diagnose.py)
 Runs the pipeline (census, formula families, sheet and row graphs, the DCF dependency graph, statement identities) over

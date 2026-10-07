@@ -208,6 +208,32 @@ def vocab_hit(name: str, label: str) -> bool:
     return bool(label) and bool(vocab(name).search(label.strip()))
 
 
+KINDS = {
+    "test": "A test of the model: the identity can genuinely fail against the saved values, because its rows were named "
+            "by a model check or by labels, so nothing about how they were chosen made the identity true.",
+    "structural": "Structure confirmed: the identity holds by construction (one row's own formula is the identity, or a "
+                  "row was chosen because its values equal its counterpart's), so it says nothing about whether the "
+                  "model is right, though it still fails when the saved values are stale or a formula was typed over.",
+}
+SCOPES = {
+    "per_period": "the roles' saved values, period by period, aligned by date (a Total column is never a period)",
+    "single": "a block laid out in one column (sources and uses): compared column by column, else by their sums",
+    "cumulative": "running totals of the roles",
+    "coverage": "a statement about the model's structure (every balance has a roll-forward), not about numbers",
+}
+
+
+def as_json() -> dict:
+    """The ontology as plain data, for the dashboard: blocks with their identities and roles, and what the kinds mean."""
+    return {"kinds": KINDS, "scopes": SCOPES,
+            "blocks": [{"type": b, "title": t,
+                        "identities": [{"key": i.key, "title": i.title, "expr": i.expr, "scope": i.scope,
+                                        "flex": list(i.flex), "kind": i.kind, "note": i.note}
+                                       for i in IDENTITIES if i.block == b],
+                        "roles": [{"name": r.name, "what": r.what, "vocab": r.vocab} for r in ROLES if r.block == b]}
+                       for b, t in BLOCKS.items()]}
+
+
 def markdown() -> str:
     lines = ["# Model ontology", "",
              "Generated from `modelatlas/ontology.py` (`uv run python -m modelatlas.ontology --write docs/model_ontology.md`). "
